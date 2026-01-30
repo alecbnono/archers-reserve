@@ -1,3 +1,5 @@
+import { Button } from "~/components/ui/button";
+
 export default function HeroSection() {
     return (
         <div className="bg-[url(hero.jpg)] bg-no-repeat bg-cover bg-center">
@@ -12,13 +14,13 @@ export default function HeroSection() {
                     </p>
                 </div>
                 <div className="flex gap-4">
-                    <button className="px-8 py-[6px] bg-neutral-50 rounded-md border-neutral-400 border-2">
+                    <Button className="px-8 py-[6px] bg-neutral-50 text-neutral-950 rounded-md border-neutral-400 border-2 ">
                         Book a slot
-                    </button>
+                    </Button>
 
-                    <button className="px-8 py-[6px] text-neutral-50 bg-neutral-800 rounded-md border-neutral-600 border-2">
+                    <Button className="px-8 py-[6px] text-neutral-50 bg-neutral-800 rounded-md border-neutral-600 border-2 ">
                         My Reservations
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>

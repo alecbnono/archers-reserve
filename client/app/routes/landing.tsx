@@ -9,7 +9,10 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "../components/ui/sheet";
+
 import HeroSection from "~/features/landing/components/HeroSection";
+import AboutSection from "~/features/landing/components/AboutSection";
+import Faq from "~/features/landing/components/Faq";
 
 export function meta({ }: Route.MetaArgs) {
     return [
@@ -22,6 +25,8 @@ export default function Landing() {
     return (
         <>
             <HeroSection />
+            <AboutSection />
+            <Faq />
         </>
     );
 }
