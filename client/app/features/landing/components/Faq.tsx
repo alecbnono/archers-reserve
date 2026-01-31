@@ -1,5 +1,3 @@
-import ClientOnly from "~/components/ClientOnly";
-
 import {
     Accordion,
     AccordionContent,
@@ -32,21 +30,19 @@ export default function Faq() {
     return (
         <div className="flex flex-col items-center gap-5 py-10 px-20">
             <h1 className="text-2xl font-medium">Frequently Asked Questions</h1>
-            <ClientOnly>
-                <Accordion
-                    type="single"
-                    collapsible
-                    defaultValue="item-1"
-                    className="max-w-lg"
-                >
-                    {items.map((item) => (
-                        <AccordionItem key={item.value} value={item.value}>
-                            <AccordionTrigger>{item.trigger}</AccordionTrigger>
-                            <AccordionContent>{item.content}</AccordionContent>
-                        </AccordionItem>
-                    ))}
-                </Accordion>
-            </ClientOnly>
+            <Accordion
+                type="single"
+                collapsible
+                defaultValue="item-1"
+                className="w-150"
+            >
+                {items.map((item) => (
+                    <AccordionItem key={item.value} value={item.value}>
+                        <AccordionTrigger>{item.trigger}</AccordionTrigger>
+                        <AccordionContent>{item.content}</AccordionContent>
+                    </AccordionItem>
+                ))}
+            </Accordion>
         </div>
     );
 }
