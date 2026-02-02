@@ -1,5 +1,5 @@
 import { LuScreenShare } from "react-icons/lu";
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
 import {
     Sheet,
     SheetClose,

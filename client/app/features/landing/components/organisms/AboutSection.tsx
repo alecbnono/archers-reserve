@@ -1,4 +1,4 @@
-import AboutCard from "./AboutCard";
+import AboutCard from "../molecules/AboutCard";
 
 export default function AboutSection() {
     return (

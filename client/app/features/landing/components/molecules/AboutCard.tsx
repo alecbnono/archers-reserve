@@ -1,4 +1,4 @@
-import type { InfoCard } from "../types/landing.types";
+import type { InfoCard } from "../../types/landing.types";
 
 export default function AboutCard({ heading, body }: InfoCard) {
     return (
