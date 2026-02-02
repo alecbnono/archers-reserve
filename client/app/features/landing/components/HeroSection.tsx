@@ -2,8 +2,8 @@ import { Button } from "~/components/ui/button";
 
 export default function HeroSection() {
     return (
-        <div className="bg-[url(hero.jpg)] bg-no-repeat bg-cover bg-center">
-            <div className="bg-primary/80 h-100 flex flex-col justify-center items-center gap-6">
+        <div className="bg-[url(hero.jpg)] bg-no-repeat bg-cover bg-center text-center w-screen">
+            <div className="bg-primary/80 py-35 px-15 flex flex-col justify-center items-center gap-6 px-10">
                 <div className="flex flex-col items-center gap-2">
                     <h1 className="font-bold text-5xl">
                         Skip the search, Secure your spot.
@@ -13,7 +13,7 @@ export default function HeroSection() {
                         actually finish your work.
                     </p>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex flex-col md:flex-row gap-4">
                     <Button className="px-8 py-[6px] bg-neutral-50 text-neutral-950 rounded-md border-neutral-400 border-2 ">
                         Book a slot
                     </Button>

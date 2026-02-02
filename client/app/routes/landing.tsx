@@ -23,10 +23,10 @@ export function meta({ }: Route.MetaArgs) {
 
 export default function Landing() {
     return (
-        <>
+        <div className="flex flex-col items-center">
             <HeroSection />
             <AboutSection />
             <Faq />
-        </>
+        </div>
     );
 }
