@@ -80,7 +80,7 @@ const chartConfig = {
 
 export default function LaboratoryCard() {
     return (
-        <Card className="max-w-128">
+        <Card className="grow">
             <CardHeader className="flex justify-between">
                 <div className="flex items-start gap-2">
                     <div>
