@@ -15,7 +15,7 @@ export default function TimeSlider() {
 
     return (
         <div className="mx-auto grid w-full max-w-xs gap-3">
-            <Label htmlFor="slider-demo-temperature">Temperature</Label>
+            <Label htmlFor="slider-time-filter">Time</Label>
             <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground text-sm">
                     {formatTime(timeRange[0])}
@@ -25,7 +25,7 @@ export default function TimeSlider() {
                 </span>
             </div>
             <Slider
-                id="slider-demo-temperature"
+                id="slider-time-filter"
                 value={timeRange}
                 onValueChange={(val: number[]) => setTimeRange(val)}
                 min={420}

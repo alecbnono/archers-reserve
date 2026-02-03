@@ -94,7 +94,7 @@ export default function LaboratoryCard() {
                 <FaArrowRight />
             </CardHeader>
             <CardContent>
-                <div className="h-32 w-96">
+                <div className="flex flex-col items-center h-32 md:w-96">
                     <ChartContainer config={chartConfig} className="h-32 w-full">
                         <BarChart data={chartData} barCategoryGap={0} barGap={0}>
                             <CartesianGrid vertical={false} />
@@ -118,7 +118,6 @@ export default function LaboratoryCard() {
                     </div>
                 </div>
             </CardContent>
-            <CardFooter className="flex-col items-start gap-2 text-sm"></CardFooter>
         </Card>
     );
 }

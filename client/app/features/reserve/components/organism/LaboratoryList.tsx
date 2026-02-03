@@ -26,18 +26,20 @@ import FilterLaboratory from "./FilterLaboratory";
 
 export default function LaboratoryList() {
     return (
-        <div className="flex flex-col gap-6 p-8">
-            <h1 className="text-3xl font-bold">Reserve</h1>
+        <div className="flex flex-col gap-6 p-2 md:p-8">
+            <h1 className="text-3xl font-bold ml-4">Reserve</h1>
             <div>
-                <Tabs defaultValue="account" className="flex flex-col gap-4">
-                    <TabsList>
-                        <TabsTrigger value="jan-1">Jan 1</TabsTrigger>
-                        <TabsTrigger value="jan-2">Jan 2</TabsTrigger>
-                        <TabsTrigger value="jan-3">Jan 3</TabsTrigger>
-                        <TabsTrigger value="jan-4">Jan 4</TabsTrigger>
-                        <TabsTrigger value="jan-5">Jan 5</TabsTrigger>
-                        <TabsTrigger value="jan-6">Jan 6</TabsTrigger>
-                        <TabsTrigger value="jan-7">Jan 7</TabsTrigger>
+                <Tabs defaultValue="account" className="flex flex-col gap-4 ">
+                    <TabsList className="text-xs">
+                        {Array.from({ length: 7 }, (_, i) => i + 1).map((day) => (
+                            <TabsTrigger
+                                key={day}
+                                className="text-xs md:text-sm"
+                                value={`jan-${day}`}
+                            >
+                                Jan {day}
+                            </TabsTrigger>
+                        ))}
                     </TabsList>
                     <div className="flex md:flex-row-reverse justify-end flex-col gap-2">
                         <FilterLaboratory />
