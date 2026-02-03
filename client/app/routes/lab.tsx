@@ -1,4 +1,7 @@
 import type { Route } from "./+types/Lab";
+
+import LaboratoryList from "~/features/reserve/components/organism/LaboratoryList";
+
 export function meta({ }: Route.MetaArgs) {
     return [
         { title: "ArchersReserve" },
@@ -6,6 +9,10 @@ export function meta({ }: Route.MetaArgs) {
     ];
 }
 
-export default function Landing() {
-    return <div className="flex"></div>;
+export default function Lab() {
+    return (
+        <div className="flex w-full">
+            <LaboratoryList />
+        </div>
+    );
 }
