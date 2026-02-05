@@ -29,22 +29,10 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 
-import { useState } from "react";
-
 import TimeSlider from "../molecule/TimeSlider";
 import BuildingFilter from "../molecule/BuildingFilter";
 
 export default function FilterLaboratory() {
-    // State holds the start and end times in minutes
-    const [timeRange, setTimeRange] = useState([420, 1080]); // 7:00 - 18:00 in minutes
-
-    // Helper: convert minutes to HH:MM
-    const formatTime = (minutes: number) => {
-        const h = Math.floor(minutes / 60);
-        const m = minutes % 60;
-        return `${h}:${m.toString().padStart(2, "0")}`;
-    };
-
     return (
         <>
             <Sheet>

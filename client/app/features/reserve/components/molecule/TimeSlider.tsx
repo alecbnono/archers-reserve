@@ -1,17 +1,11 @@
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { formatTime } from "../../utils/reserve";
 
 export default function TimeSlider() {
     // State holds the start and end times in minutes
     const [timeRange, setTimeRange] = useState([420, 1080]); // 7:00 - 18:00 in minutes
-
-    // Helper: convert minutes to HH:MM
-    const formatTime = (minutes: number) => {
-        const h = Math.floor(minutes / 60);
-        const m = minutes % 60;
-        return `${h}:${m.toString().padStart(2, "0")}`;
-    };
 
     return (
         <div className="mx-auto grid w-full max-w-xs gap-3">
