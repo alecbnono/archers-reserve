@@ -12,13 +12,15 @@ export default function Timeslot({
     return (
         <ToggleGroupItem
             value={timeInMins.toString()}
-            className="rounded-full p-4 bg-neutral-50 border-2 border-primary 
+            className="rounded-full p-2 py-0 md:p-4 bg-neutral-50 border-2 border-primary 
             data-[state=on]:bg-primary 
             data-[state=on]:text-neutral-50
             hover:bg-green-200 
             hover:text-neutral-950
             transition
             duration-150
+            text-xs
+            md:text-sm
             "
         >
             <span>{formatTime(timeInMins)}</span>

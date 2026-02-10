@@ -7,27 +7,30 @@ import ConfirmationDisplay from "../molecule/ConfirmationDisplay";
 
 export default function LaboratoryConfirmation() {
     return (
-        <div className="flex justify-evenly p-8 grow items-center  flex-wrap">
-            <ToggleGroup
-                type="single"
-                className="flex flex-col gap-2 max-h-125 flex-wrap"
-                spacing={2}
-            >
-                {Array.from({ length: 22 }, (_, i) => i + 1).map((minutes) => (
-                    <Timeslot
-                        timeInMins={390 + minutes * 30}
-                        capacity={20}
-                        occupiedSeats={10}
-                    />
-                ))}
-            </ToggleGroup>
-            <div className="flex flex-col gap-4">
-                <h1 className="text-2xl font-medium">Confirm your booking</h1>
+        <div className="flex flex-col items-center w-full pt-8">
+            <h1 className="text-3xl font-semibold mb-8 md:mb-0">
+                Confirm your booking
+            </h1>
+            <div className="flex flex-col gap-8 md:flex-row items-center justify-center md:justify-around px-8 w-full grow flex-wrap">
+                <ToggleGroup
+                    type="single"
+                    className="flex flex-col gap-2 max-h-86 md:max-h-125 w-full md:w-fit flex-wrap"
+                    spacing={2}
+                >
+                    {Array.from({ length: 22 }, (_, i) => i + 1).map((minutes) => (
+                        <Timeslot
+                            timeInMins={390 + minutes * 30}
+                            capacity={20}
+                            occupiedSeats={10}
+                        />
+                    ))}
+                </ToggleGroup>
+                <div className="flex flex-col gap-4">
+                    <SeatSelection />
+                    <ConfirmationDisplay />
 
-                <SeatSelection />
-                <ConfirmationDisplay />
-
-                <Button className="w-full rounded-full">Submit</Button>
+                    <Button className="w-full rounded-full">Submit</Button>
+                </div>
             </div>
         </div>
     );
