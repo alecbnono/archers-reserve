@@ -11,5 +11,6 @@ export default [
         route("lab", "./routes/lab.tsx"),
         route("lab/confirm", "./routes/confirm.tsx"),
         route("user/profile", "./routes/profile.tsx"),
+        route("logs", "./routes/adminLogs.tsx"),
     ]),
 ] satisfies RouteConfig;
