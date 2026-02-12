@@ -1,22 +1,4 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-    Field,
-    FieldContent,
-    FieldDescription,
-    FieldGroup,
-    FieldLabel,
-    FieldTitle,
-} from "@/components/ui/field";
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectLabel,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import LaboratoryCard from "../molecule/LaboratoryCard";
 import FilterLaboratory from "./FilterLaboratory";
 import WeekSelection from "../molecule/WeekSelection";
