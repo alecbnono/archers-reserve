@@ -10,9 +10,9 @@ import {
     SheetTrigger,
 } from "../components/ui/sheet";
 
-import HeroSection from "~/features/landing/components/HeroSection";
-import AboutSection from "~/features/landing/components/AboutSection";
-import Faq from "~/features/landing/components/Faq";
+import HeroSection from "~/features/landing/components/organisms/HeroSection";
+import Faq from "~/features/landing/components/organisms/Faq";
+import AboutSection from "~/features/landing/components/organisms/AboutSection";
 
 export function meta({ }: Route.MetaArgs) {
     return [
@@ -23,10 +23,10 @@ export function meta({ }: Route.MetaArgs) {
 
 export default function Landing() {
     return (
-        <>
+        <div className="flex flex-col items-center">
             <HeroSection />
             <AboutSection />
             <Faq />
-        </>
+        </div>
     );
 }
