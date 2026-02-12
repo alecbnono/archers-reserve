@@ -34,6 +34,7 @@ export default function ReserveLogs() {
                             <TableHead>Date</TableHead>
                             <TableHead>Room</TableHead>
                             <TableHead>First Name</TableHead>
+                            <TableHead>Last Name</TableHead>
                             <TableHead>Start Time</TableHead>
                             <TableHead>Cancel</TableHead>
                             <TableHead>Edit</TableHead>
