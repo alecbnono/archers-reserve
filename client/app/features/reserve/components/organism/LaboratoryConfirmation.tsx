@@ -1,11 +1,16 @@
 import Timeslot from "../atom/Timeslot";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Button } from "~/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 import SeatSelection from "../molecule/SeatSelection";
 import ConfirmationDisplay from "../molecule/ConfirmationDisplay";
 
+import { useAuthStore } from "~/store/user.store";
+
 export default function LaboratoryConfirmation() {
+    const currentUser = useAuthStore((state) => state.currentUser);
     return (
         <div className="flex flex-col items-center w-full pt-8">
             <h1 className="text-3xl font-semibold mb-8 md:mb-0">
@@ -26,6 +31,14 @@ export default function LaboratoryConfirmation() {
                     ))}
                 </ToggleGroup>
                 <div className="flex flex-col gap-4">
+                    {currentUser?.role === "ADMIN" ? (
+                        <Field orientation="horizontal">
+                            <Input type="search" placeholder="Search user..." />
+                            <Button>Search</Button>
+                        </Field>
+                    ) : (
+                        <></>
+                    )}
                     <SeatSelection />
                     <ConfirmationDisplay />
 

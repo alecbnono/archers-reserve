@@ -1,4 +1,7 @@
 import { Button } from "~/components/ui/button";
+import { NavLink } from "react-router";
+import { FaUserLarge } from "react-icons/fa6";
+import { FaBook } from "react-icons/fa";
 
 export default function HeroSection() {
     return (
@@ -14,13 +17,26 @@ export default function HeroSection() {
                     </p>
                 </div>
                 <div className="flex flex-col md:flex-row gap-4">
-                    <Button className="px-8 py-[6px] bg-neutral-50 text-neutral-950 rounded-md border-neutral-400 border-2 ">
-                        Book a slot
-                    </Button>
-
-                    <Button className="px-8 py-[6px] text-neutral-50 bg-neutral-800 rounded-md border-neutral-600 border-2 ">
-                        My Reservations
-                    </Button>
+                    <NavLink to="dashboard/profile" className="w-full">
+                        {({ isActive }) => (
+                            <Button
+                                variant={isActive ? "default" : "outline"}
+                                className="px-8 py-[6px] bg-neutral-50 text-neutral-950 rounded-md border-neutral-400 border-2 "
+                            >
+                                Book a slot
+                            </Button>
+                        )}
+                    </NavLink>
+                    <NavLink to="dashboard/lab" className="w-full">
+                        {({ isActive }) => (
+                            <Button
+                                variant={isActive ? "default" : "outline"}
+                                className="px-8 py-[6px] text-neutral-50 bg-neutral-800 rounded-md border-neutral-600 border-2 "
+                            >
+                                My Reservations
+                            </Button>
+                        )}
+                    </NavLink>
                 </div>
             </div>
         </div>

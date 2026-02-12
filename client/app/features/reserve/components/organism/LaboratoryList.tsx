@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LaboratoryCard from "../molecule/LaboratoryCard";
 import FilterLaboratory from "./FilterLaboratory";
 import WeekSelection from "../molecule/WeekSelection";
+import { MOCK_LABS } from "~/data/mockLabs";
 
 export default function LaboratoryList() {
     return (
@@ -26,12 +27,16 @@ export default function LaboratoryList() {
                     <div className="flex md:flex-row-reverse justify-end flex-col gap-2">
                         <FilterLaboratory />
 
-                        <TabsContent value="jan-1" className="flex gap-2 flex-wrap w-full">
-                            <LaboratoryCard />
-                            <LaboratoryCard />
-                            <LaboratoryCard />
-                            <LaboratoryCard />
-                        </TabsContent>
+                        {Array.from({ length: 7 }, (_, i) => i + 1).map((day) => (
+                            <TabsContent
+                                value={"jan-" + day.toString()}
+                                className="flex gap-2 flex-wrap w-full"
+                            >
+                                {MOCK_LABS.map((lab) => (
+                                    <LaboratoryCard lab={lab} />
+                                ))}
+                            </TabsContent>
+                        ))}
                     </div>
                 </Tabs>
             </div>
