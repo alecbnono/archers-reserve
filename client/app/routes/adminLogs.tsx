@@ -1,6 +1,6 @@
 import type { Route } from "./+types/adminLogs";
-
-import AdminReserveLogs from "~/features/admin/components/organism/adminReserveLogs";
+import FilterLaboratory from "~/features/reserve/components/organism/FilterLaboratory";
+import ReserveLogs from "~/components/organisms/ReserveLogs";
 
 export function meta({ }: Route.MetaArgs) {
     return [
@@ -12,7 +12,13 @@ export function meta({ }: Route.MetaArgs) {
 export default function adminLogs() {
     return (
         <div className="flex w-full">
-           <AdminReserveLogs />
+            <div className="flex flex-col gap-6 p-2 md:p-8 w-full">
+                <h1 className="text-3xl font-bold ml-4">Reservation Logs</h1>
+                <div className="flex md:flex-row-reverse justify-end flex-col gap-4">
+                    <ReserveLogs />
+                    <FilterLaboratory />
+                </div>
+            </div>
         </div>
     );
 }
