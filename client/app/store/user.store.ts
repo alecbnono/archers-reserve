@@ -12,7 +12,7 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-    currentUser: MOCK_USERS[0],
+    currentUser: null,
     loginAs: (role) => {
         const user = MOCK_USERS.find((u) => u.role === role) || null;
         set({ currentUser: user });
