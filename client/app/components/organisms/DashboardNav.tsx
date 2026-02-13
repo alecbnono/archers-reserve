@@ -107,6 +107,22 @@ export default function DashboardNav() {
                                     </Button>
                                 )}
                             </NavLink>
+
+                            {currentUser?.role === "ADMIN" ? (
+                                <NavLink to="dashboard/logs" className="w-full">
+                                    {({ isActive }) => (
+                                        <Button
+                                            variant={isActive ? "default" : "outline"}
+                                            className="justify-start py-5 w-full gap-3"
+                                        >
+                                            <LuScroll />
+                                            Logs
+                                        </Button>
+                                    )}
+                                </NavLink>
+                            ) : (
+                                <></>
+                            )}
                         </div>
                     </SheetContent>
                 </Sheet>
