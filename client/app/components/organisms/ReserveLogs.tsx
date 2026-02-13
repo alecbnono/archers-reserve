@@ -67,6 +67,7 @@ export default function ReserveLogs({
                     <TableBody>
                         {MOCK_RESERVATIONS.map((reservation) => (
                             <ReserveLogRow
+                                key={reservation.id}
                                 reservation={reservation}
                                 canManage={canManage}
                                 isAdmin={isAdmin}

@@ -5,6 +5,8 @@ import type { ReservationType } from "~/types/reservation.types";
 
 import { formatDateTime } from "~/lib/utils";
 
+import { Link } from "react-router";
+
 export default function ReserveLogRow({
     reservation,
     canManage,
@@ -42,9 +44,11 @@ export default function ReserveLogRow({
                     <TableCell>
                         <Button variant="destructive">Delete</Button>
                     </TableCell>
-                    <TableCell>
-                        <Button variant="secondary">Edit</Button>
-                    </TableCell>
+                    <Link to="/dashboard/lab">
+                        <TableCell>
+                            <Button variant="secondary">Edit</Button>
+                        </TableCell>
+                    </Link>
                 </>
             ) : (
                 <></>
