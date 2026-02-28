@@ -1,38 +1,43 @@
 CREATE DATABASE IF NOT EXISTS Lab_Reservation_System;
 USE Lab_Reservation_System;
 
-CREATE TABLE Labs(
-    labID VARCHAR(7) PRIMARY KEY,
-    building VARCHAR(15),
-    roomNumber INT,
-    status ENUM('OPEN', 'CLOSED'),
-    totalSeats INT,
-    occupiedSeats INT
+CREATE TABLE IF NOT EXISTS Room (
+    roomID       INT PRIMARY KEY AUTO_INCREMENT,
+    roomCode     VARCHAR(10),
+    buildingName VARCHAR(100),
+    description  VARCHAR(280)
+);
+CREATE TABLE IF NOT EXISTS User (
+    userID            INT PRIMARY KEY AUTO_INCREMENT,
+    firstName         VARCHAR(64),
+    lastName          VARCHAR(64),
+    email             VARCHAR(64) NOT NULL,
+    bio               VARCHAR(280),
+    profilePictureURL VARCHAR(6553),
+    isAnonymous       BOOLEAN,
+    isPublic          BOOLEAN,
+    role              ENUM('student', 'faculty', 'admin')
 );
 
-CREATE TABLE Lab_Seats(
-    seatID INT PRIMARY KEY AUTO_INCREMENT,
-    seatRow VARCHAR(1),
-    seatCol INT,
-    isReserved BOOL NOT NULL DEFAULT FALSE, 
-    labID VARCHAR(7),
-    reservationID INT
+CREATE TABLE IF NOT EXISTS Seat (
+    roomId INT,
+    seatId INT,
 );
 
-CREATE TABLE Reservation_Logs(
-    reservationID INT PRIMARY KEY AUTO_INCREMENT,
-    requestTime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    startTime TIMESTAMP,
-    userID INT FOREIGN KEY
+CREATE TABLE IF NOT EXISTS Reservation (
+    reservationID  INT PRIMARY KEY AUTO_INCREMENT,
+    userID         INT,
+    seatID         INT,
+    roomID         INT,
+    timeslotID     INT,
+    requestDate    DATE,
+    requestTime    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    isAnonymous    BOOLEAN,
+    isRecurring    BOOLEAN,
 );
 
-CREATE TABLE Users(
-    userID INT PRIMARY KEY AUTO_INCREMENT,
-    firstName VARCHAR(15),
-    lastName VARCHAR(15),
-    accPassword VARCHAR(8),
-    email VARCHAR(25),
-    role ENUM('STUDENT', 'ADMIN', 'FACULTY'),
-    bio TINYTEXT,
-    profilePicture BLOB
+CREATE TABLE IF NOT EXISTS Timeslot (
+    timeslotID INT PRIMARY KEY AUTO_INCREMENT,
+    startTime  TIME,
+    endTime    TIME
 );
