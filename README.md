@@ -6,11 +6,12 @@ cd server
 ```
 
 ```
-npm install pg
+npm install express sequelize pg cors nodemon dotenv
 ```
 
 ```
 npm install @types/pg -D
 ```
+
 
 
