@@ -16,12 +16,13 @@ CREATE TABLE IF NOT EXISTS User (
     profilePictureURL VARCHAR(6553),
     isAnonymous       BOOLEAN,
     isPublic          BOOLEAN,
-    role              ENUM('student', 'faculty', 'admin')
+    role              ENUM('STUDENT', 'FACULTY', 'ADMIN') NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Seat (
     roomId INT,
     seatId INT,
+    PRIMARY KEY (roomId, seatId)
 );
 
 CREATE TABLE IF NOT EXISTS Reservation (
