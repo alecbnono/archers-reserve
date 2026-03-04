@@ -5,6 +5,7 @@ export default {
     USER: process.env.DB_USER,
     PASSWORD: process.env.DB_PASSWORD,
     DB: process.env.DB_NAME,
+    PORT: process.env.POSTGRESQL_PORT,
     dialect: "postgres",
     pool: {
         max: 5,
