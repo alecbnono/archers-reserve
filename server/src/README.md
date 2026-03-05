@@ -1,8 +1,8 @@
-src/
-├─app
+/src
+├─/app
 │
-├─features
+├─/features
 │
-├─middleware        
+├─/middleware        
 │
-└─utils
+└─/utils
