@@ -1,14 +1,3 @@
-import express from "express";
+import startServer from "./app/server.js";
 
-const app = express();
-const PORT = 3000;
-
-app.use(express.json());
-
-app.get("/", (req, res) => {
-    res.send("Backend running ");
-});
-
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-});
+startServer();
