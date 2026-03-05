@@ -3,7 +3,7 @@
 
 # Contents of this project
 - [Used Technologies](#used-technologies)
-- [Postgresql Setup](#postgresql-download-if-not-downloaded-yet-(windows))
+- [Postgresql Setup](#postgresql-download-if-not-downloaded-yet-windows)
 - [Running the backend](#running-the-backend)
 
 
