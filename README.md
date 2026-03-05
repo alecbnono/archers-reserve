@@ -18,6 +18,7 @@
     - Express
 
 ## PostgreSQL download if not downloaded yet (windows)
+- [Return to top](#archers-reserve)
 ```
 https://www.postgresql.org/download/
 ```
@@ -32,10 +33,11 @@ https://www.postgresql.org/download/
 
 ## Dependancies for PostGresq setup
 - [Return to top](#archers-reserve)
+1. switch directories to server
 ```
 cd server
 ```
-
+2. copy paste into terminal
 ```
 npm install express sequelize pg cors nodemon dotenv
 ```
@@ -44,7 +46,7 @@ npm install express sequelize pg cors nodemon dotenv
 npm install -D typescript @types/node @types/express @types/pg @types/cors ts-node nodemon
 ```
 
-## Make a .env file and copy paste this
+3. Make a .env file, copy paste, and edit
 ```
 POSTGRESQL_PORT= 5432 or whichever port you used during download
 DB_USER   = postgres
