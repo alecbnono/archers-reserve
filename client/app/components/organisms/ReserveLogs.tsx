@@ -20,7 +20,15 @@ import {
 
 import ReserveLogRow from "../molecule/ReserveLogRow";
 
-export default function ReserveLogs() {
+import { MOCK_RESERVATIONS } from "~/data/mockReservations";
+
+export default function ReserveLogs({
+    canManage,
+    isAdmin,
+}: {
+    canManage: boolean;
+    isAdmin: boolean;
+}) {
     return (
         <Card className="grow w-full">
             <CardHeader>
@@ -31,18 +39,39 @@ export default function ReserveLogs() {
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[100px]">Reserve ID</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Room</TableHead>
-                            <TableHead>First Name</TableHead>
-                            <TableHead>Last Name</TableHead>
+                            <TableHead>Request Time</TableHead>
                             <TableHead>Start Time</TableHead>
-                            <TableHead>Cancel</TableHead>
-                            <TableHead>Edit</TableHead>
+                            <TableHead>Building</TableHead>
+                            <TableHead>Room</TableHead>
+
+                            <TableHead>Seat Number</TableHead>
+                            {isAdmin === true ? (
+                                <>
+                                    <TableHead>First Name</TableHead>
+                                    <TableHead>Last Name</TableHead>
+                                </>
+                            ) : (
+                                <></>
+                            )}
+
+                            {canManage === true ? (
+                                <>
+                                    <TableHead>Cancel</TableHead>
+                                    <TableHead>Edit</TableHead>
+                                </>
+                            ) : (
+                                <></>
+                            )}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {Array.from({ length: 22 }, (_, i) => i + 1).map((id) => (
-                            <ReserveLogRow id={id} />
+                        {MOCK_RESERVATIONS.map((reservation) => (
+                            <ReserveLogRow
+                                key={reservation.id}
+                                reservation={reservation}
+                                canManage={canManage}
+                                isAdmin={isAdmin}
+                            />
                         ))}
                     </TableBody>
                 </Table>

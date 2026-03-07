@@ -18,23 +18,30 @@ import {
 } from "@/components/ui/select";
 
 import { useState } from "react";
+import { useAuthStore } from "~/store/user.store";
 
 export default function WeekSelection() {
+    const currentUser = useAuthStore((state) => state.currentUser);
+
     const [checked, setChecked] = useState(false);
 
     return (
         <div className="flex gap-2 px-2">
-            <Field orientation="horizontal">
-                <Checkbox
-                    id="terms-checkbox-basic"
-                    name="terms-checkbox-basic"
-                    checked={checked}
-                    onCheckedChange={(value) => {
-                        setChecked(!!value);
-                    }}
-                />
-                <FieldLabel htmlFor="terms-checkbox-basic">Recurring?</FieldLabel>
-            </Field>
+            {currentUser?.role !== "STUDENT" ? (
+                <Field orientation="horizontal">
+                    <Checkbox
+                        id="terms-checkbox-basic"
+                        name="terms-checkbox-basic"
+                        checked={checked}
+                        onCheckedChange={(value) => {
+                            setChecked(!!value);
+                        }}
+                    />
+                    <FieldLabel htmlFor="terms-checkbox-basic">Recurring?</FieldLabel>
+                </Field>
+            ) : (
+                <></>
+            )}
             <Select disabled={checked}>
                 <SelectTrigger className="w-full max-w-48 text-xs">
                     <SelectValue placeholder="Week" className="text-xs" />

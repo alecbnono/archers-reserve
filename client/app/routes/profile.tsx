@@ -10,13 +10,21 @@ export function meta({ }: Route.MetaArgs) {
     ];
 }
 
+import { useAuthStore } from "~/store/user.store";
+
 export default function Profile() {
+    const currentUser = useAuthStore((state) => state.currentUser);
+
     return (
         <div className="flex flex-col gap-4 w-full px-4 md:px-20 py-5">
             <ProfileHeader />
-            <div className="flex flex-col items-center gap-4">
-                <ReserveLogs />
-            </div>
+            {currentUser?.role !== "ADMIN" ? (
+                <div className="flex flex-col items-center gap-4">
+                    <ReserveLogs isAdmin={false} canManage={true} />
+                </div>
+            ) : (
+                <></>
+            )}
         </div>
     );
 }
