@@ -1,4 +1,4 @@
-import type { Route } from "./+types/Confirm";
+import type { Route } from "./+types/confirm";
 
 import LaboratoryConfirmation from "~/features/reserve/components/organism/LaboratoryConfirmation";
 

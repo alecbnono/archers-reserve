@@ -1,44 +1,48 @@
-CREATE DATABASE IF NOT EXISTS Lab_Reservation_System;
-USE Lab_Reservation_System;
+-- Archers Reserve - PostgreSQL Schema
 
-CREATE TABLE IF NOT EXISTS Room (
-    roomID       INT PRIMARY KEY AUTO_INCREMENT,
-    roomCode     VARCHAR(10),
-    buildingName VARCHAR(100),
-    description  VARCHAR(280)
-);
-CREATE TABLE IF NOT EXISTS User (
-    userID            INT PRIMARY KEY AUTO_INCREMENT,
-    firstName         VARCHAR(64),
-    lastName          VARCHAR(64),
-    email             VARCHAR(64) NOT NULL,
-    bio               VARCHAR(280),
-    profilePictureURL VARCHAR(6553),
-    isAnonymous       BOOLEAN,
-    isPublic          BOOLEAN,
-    role              ENUM('STUDENT', 'FACULTY', 'ADMIN') NOT NULL
+CREATE TABLE IF NOT EXISTS room (
+    room_id      SERIAL PRIMARY KEY,
+    room_code    VARCHAR(10) NOT NULL,
+    building_name VARCHAR(100) NOT NULL,
+    description  VARCHAR(280) DEFAULT ''
 );
 
-CREATE TABLE IF NOT EXISTS Seat (
-    roomId INT,
-    seatId INT,
-    PRIMARY KEY (roomId, seatId)
+CREATE TABLE IF NOT EXISTS "user" (
+    user_id            SERIAL PRIMARY KEY,
+    username           VARCHAR(50) NOT NULL UNIQUE,
+    first_name         VARCHAR(64) NOT NULL,
+    last_name          VARCHAR(64) NOT NULL,
+    email              VARCHAR(64) NOT NULL UNIQUE,
+    password_hash      TEXT NOT NULL,
+    bio                VARCHAR(280) DEFAULT '',
+    profile_picture_url VARCHAR(2048) DEFAULT '',
+    is_anonymous       BOOLEAN DEFAULT FALSE,
+    is_public          BOOLEAN DEFAULT TRUE,
+    role               VARCHAR(10) NOT NULL CHECK (role IN ('STUDENT', 'FACULTY', 'ADMIN')),
+    created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS Reservation (
-    reservationID  INT PRIMARY KEY AUTO_INCREMENT,
-    userID         INT,
-    seatID         INT,
-    roomID         INT,
-    timeslotID     INT,
-    requestDate    DATE,
-    requestTime    DATETIME DEFAULT CURRENT_TIMESTAMP,
-    isAnonymous    BOOLEAN,
-    isRecurring    BOOLEAN,
+CREATE TABLE IF NOT EXISTS seat (
+    room_id INT NOT NULL REFERENCES room(room_id) ON DELETE CASCADE,
+    seat_id INT NOT NULL,
+    PRIMARY KEY (room_id, seat_id)
 );
 
-CREATE TABLE IF NOT EXISTS Timeslot (
-    timeslotID INT PRIMARY KEY AUTO_INCREMENT,
-    startTime  TIME,
-    endTime    TIME
+CREATE TABLE IF NOT EXISTS timeslot (
+    timeslot_id SERIAL PRIMARY KEY,
+    start_time  TIME NOT NULL,
+    end_time    TIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS reservation (
+    reservation_id SERIAL PRIMARY KEY,
+    user_id        INT NOT NULL REFERENCES "user"(user_id) ON DELETE CASCADE,
+    seat_id        INT NOT NULL,
+    room_id        INT NOT NULL,
+    timeslot_id    INT NOT NULL REFERENCES timeslot(timeslot_id) ON DELETE CASCADE,
+    request_date   DATE NOT NULL,
+    request_time   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_anonymous   BOOLEAN DEFAULT FALSE,
+    is_recurring   BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (room_id, seat_id) REFERENCES seat(room_id, seat_id) ON DELETE CASCADE
 );

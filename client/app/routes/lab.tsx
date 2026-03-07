@@ -1,4 +1,4 @@
-import type { Route } from "./+types/Lab";
+import type { Route } from "./+types/lab";
 
 import LaboratoryList from "~/features/reserve/components/organism/LaboratoryList";
 
