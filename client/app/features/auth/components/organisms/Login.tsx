@@ -4,14 +4,18 @@ import {
     CardAction,
     CardContent,
     CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from "~/components/ui/card"
 import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
 
-export default function Login({ setLogin, openRegister }: { setLogin: any, openRegister: any }) {
+interface LoginProps {
+    setLogin: (open: boolean) => void;
+    openRegister: () => void;
+}
+
+export default function Login({ setLogin, openRegister }: LoginProps) {
     return (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-800/50 overflow-hidden animate-in fade-in duration-300"
             onClick={(e) => {
@@ -49,14 +53,12 @@ export default function Login({ setLogin, openRegister }: { setLogin: any, openR
                                 </div>
                                 <Input id="password" type="password" required />
                             </div>
+                            <Button type="submit" className="w-full text-white">
+                                Login
+                            </Button>
                         </div>
                     </form>
                 </CardContent>
-                <CardFooter className="flex-col gap-2">
-                    <Button type="submit" className="w-full text-white">
-                        Login
-                    </Button>
-                </CardFooter>
-            </Card> </div>
+            </Card></div>
     )
 }

@@ -1,22 +1,25 @@
 import { Button } from "~/components/ui/button"
 import {
     Card,
-    CardAction,
     CardContent,
     CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from "~/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
 
-import { useRegistrationForm } from "~/hooks/useRegistrationForm"
+import { useRegistrationForm } from "~/features/auth/hooks/useRegistrationForm"
 
-export default function Registration({ setRegister, openLogin }: { setRegister: any, openLogin: any }) {
+interface RegistrationProps {
+    setRegister: (open: boolean) => void;
+    openLogin: () => void;
+}
 
-    const { form, submitted, errors, handleChange, handleSubmit } = useRegistrationForm();
+export default function Registration({ setRegister, openLogin }: RegistrationProps) {
+
+    const { form, errors, serverError, handleChange, handleSubmit, setRole } = useRegistrationForm();
 
     return (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-800/50 overflow-hidden animate-in fade-in duration-300"
@@ -35,10 +38,15 @@ export default function Registration({ setRegister, openLogin }: { setRegister: 
                 <CardContent>
                     <form onSubmit={handleSubmit}>
                         <div className="flex flex-col gap-4">
-                            <Tabs defaultValue="student" className="flex items-center w-full">
+                            <Tabs
+                                defaultValue="STUDENT"
+                                value={form.role}
+                                onValueChange={setRole}
+                                className="flex items-center w-full"
+                            >
                                 <TabsList>
-                                    <TabsTrigger value="student">Student</TabsTrigger>
-                                    <TabsTrigger value="faculty">Faculty</TabsTrigger>
+                                    <TabsTrigger value="STUDENT">Student</TabsTrigger>
+                                    <TabsTrigger value="FACULTY">Faculty</TabsTrigger>
                                 </TabsList>
                             </Tabs>
                             <div className="grid gap-2">
@@ -49,8 +57,7 @@ export default function Registration({ setRegister, openLogin }: { setRegister: 
                                     type="text"
                                     placeholder="John"
                                     required
-
-                                    value={form.username}
+                                    value={form.firstName}
                                     onChange={handleChange}
                                 />
                             </div>
@@ -62,6 +69,8 @@ export default function Registration({ setRegister, openLogin }: { setRegister: 
                                     type="text"
                                     placeholder="Doe"
                                     required
+                                    value={form.lastName}
+                                    onChange={handleChange}
                                 />
                             </div>
                             <div className="grid gap-2">
@@ -77,50 +86,54 @@ export default function Registration({ setRegister, openLogin }: { setRegister: 
                                     value={form.username}
                                     onChange={handleChange}
                                 />
+                                {errors.username && <p className="text-red-500 text-sm">{errors.username}</p>}
                             </div>
 
-                            <div className="flex flex-col gap-6">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="email">Email</Label>
-                                    <Input
-                                        id="email"
-                                        name="email"
-                                        type="email"
-                                        placeholder="john.doe@dlsu.edu.ph"
-                                        required
-                                        value={form.email}
-                                        onChange={handleChange} />
-                                </div>
-
+                            <div className="grid gap-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    placeholder="john.doe@dlsu.edu.ph"
+                                    required
+                                    value={form.email}
+                                    onChange={handleChange}
+                                />
+                                {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
                             </div>
+
                             <div className="grid gap-2">
                                 <Label htmlFor="password">Password</Label>
-                                <Input id="password"
+                                <Input
+                                    id="password"
                                     type="password"
                                     name="password"
                                     required
                                     minLength={8}
                                     value={form.password}
-                                    onChange={handleChange} />
+                                    onChange={handleChange}
+                                />
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="password">Confirm your password</Label>
-                                <Input id="confirm-password"
+                                <Label htmlFor="confirm-password">Confirm your password</Label>
+                                <Input
+                                    id="confirm-password"
                                     type="password"
                                     name="confirmPassword"
                                     required
                                     minLength={8}
                                     value={form.confirmPassword}
-                                    onChange={handleChange} />
+                                    onChange={handleChange}
+                                />
+                                {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
                             </div>
+
+                            {serverError && <p className="text-red-500 text-sm">{serverError}</p>}
+
                             <Button type="submit" className="text-white">Create Account</Button>
 
-                            <div>
-                                {errors.username && <p className="text-red-500">Username must be 3–20 characters and contain only letters, numbers, or _</p>}
-                                {errors.email && <p className="text-red-500">Email should end with @dlsu.edu.ph</p>}
-                                {errors.password && <p className="text-red-500">Passwords don't match</p>}
-                            </div>
                             <div className="flex gap-1 items-center">
                                 <p className="text-gray-500">Already have an account?  </p>
                                 <button type="button" onClick={openLogin} className="font-bold hover:underline">
