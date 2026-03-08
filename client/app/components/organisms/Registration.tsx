@@ -45,17 +45,20 @@ export default function Registration({ setRegister, openLogin }: { setRegister: 
                                 <Label htmlFor="first-name">First Name</Label>
                                 <Input
                                     id="first-name"
-                                    name="first-name"
+                                    name="firstName"
                                     type="text"
                                     placeholder="John"
                                     required
+
+                                    value={form.username}
+                                    onChange={handleChange}
                                 />
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="last-name">Last Name</Label>
                                 <Input
                                     id="last-name"
-                                    name="last-name"
+                                    name="lastName"
                                     type="text"
                                     placeholder="Doe"
                                     required
