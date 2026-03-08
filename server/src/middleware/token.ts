@@ -5,29 +5,32 @@ import jwt from "jsonwebtoken";
 const ACCESS_TOKEN_EXPIRY = "7d";
 
 export function generateAccessToken(payload: TokenPayload): string {
-    return jwt.sign(payload, process.env.JWT_SECRET!, {
-        expiresIn: ACCESS_TOKEN_EXPIRY,
-    });
+  return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET!, {
+    expiresIn: ACCESS_TOKEN_EXPIRY,
+  });
 }
 
 export function requireAuth(
-    req: AuthRequest,
-    res: Response,
-    next: NextFunction,
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
 ): void {
-    const token = req.cookies?.accessToken;
+  const token = req.cookies?.accessToken;
 
-    if (!token) {
-        res.status(401).json({ error: "Authentication required" });
-        return;
-    }
+  if (!token) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
 
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as TokenPayload;
-        req.user = decoded;
-        next();
-    } catch (error) {
-        res.status(401).json({ error: "Invalid or expired token" });
-        return;
-    }
+  try {
+    const decoded = jwt.verify(
+      token,
+      process.env.ACCESS_TOKEN_SECRET!,
+    ) as TokenPayload;
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: "Invalid or expired token" });
+    return;
+  }
 }
