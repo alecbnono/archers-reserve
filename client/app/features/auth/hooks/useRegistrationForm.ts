@@ -2,7 +2,11 @@ import { useState } from "react";
 import { INITIAL_FORM } from "~/features/auth/types/auth.types";
 import type { RegisterPayload } from "~/features/auth/types/auth.types";
 import type { UserRole } from "~/types/user.types";
-import { validate, allValid, errorMessages } from "~/features/auth/services/auth.validation";
+import {
+  validate,
+  allValid,
+  errorMessages,
+} from "~/features/auth/services/auth.validation";
 import { registerUser } from "~/features/auth/services/auth.service";
 
 export function useRegistrationForm() {
@@ -16,7 +20,11 @@ export function useRegistrationForm() {
     : { username: "", email: "", password: "" };
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    if (e.target.name === "isRemembered") {
+      setForm((prev) => ({ ...prev, ["isRemembered"]: !e.target.value }));
+    } else {
+      setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    }
   }
 
   function setRole(role: string) {

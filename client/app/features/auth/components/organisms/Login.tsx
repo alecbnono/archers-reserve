@@ -1,3 +1,4 @@
+import { Checkbox } from "~/components/ui/checkbox"
 import { Button } from "~/components/ui/button"
 import {
     Card,
@@ -10,12 +11,17 @@ import {
 import { Input } from "~/components/ui/input"
 import { Label } from "~/components/ui/label"
 
+import { useLoginForm } from "../../hooks/useLoginForm"
+
 interface LoginProps {
     setLogin: (open: boolean) => void;
     openRegister: () => void;
 }
 
 export default function Login({ setLogin, openRegister }: LoginProps) {
+
+    const { form, errors, serverError, handleChange, handleRememberChange, handleSubmit } = useLoginForm();
+
     return (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-800/50 overflow-hidden animate-in fade-in duration-300"
             onClick={(e) => {
@@ -36,24 +42,39 @@ export default function Login({ setLogin, openRegister }: LoginProps) {
                     </CardAction>
                 </CardHeader>
                 <CardContent>
-                    <form>
+                    <form onSubmit={handleSubmit}>
                         <div className="flex flex-col gap-6">
                             <div className="grid gap-2">
                                 <Label htmlFor="email">Email</Label>
                                 <Input
                                     id="email"
+                                    name="email"
                                     type="email"
-                                    placeholder="m@dlsu.edu.ph"
+                                    placeholder="john.doe@dlsu.edu.ph"
                                     required
+                                    onChange={handleChange}
                                 />
+                                {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
                             </div>
                             <div className="grid gap-2">
                                 <div className="flex items-center">
                                     <Label htmlFor="password">Password</Label>
                                 </div>
-                                <Input id="password" type="password" required />
+                                <Input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    required
+                                    minLength={8}
+                                    onChange={handleChange}
+                                />
                             </div>
-                            <Button type="submit" className="w-full text-white">
+                            <div className="flex gap-2 items-center">
+                                <Checkbox id="is-remembered" name="isRemembered" checked={form.isRemembered} onCheckedChange={handleRememberChange} />
+                                <Label htmlFor="is-remembered">Remember?</Label>
+                            </div>
+                            {serverError && <p className="text-red-500 text-sm">{serverError}</p>}
+                            <Button type="submit" className="w-full text-white" >
                                 Login
                             </Button>
                         </div>
