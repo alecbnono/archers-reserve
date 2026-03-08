@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router"
 import { Checkbox } from "~/components/ui/checkbox"
 import { Button } from "~/components/ui/button"
 import {
@@ -19,8 +20,16 @@ interface LoginProps {
 }
 
 export default function Login({ setLogin, openRegister }: LoginProps) {
-
+    const navigate = useNavigate();
     const { form, errors, serverError, handleChange, handleRememberChange, handleSubmit } = useLoginForm();
+
+    async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+        const success = await handleSubmit(e);
+        if (success) {
+            setLogin(false);
+            navigate("/dashboard/lab");
+        }
+    }
 
     return (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-800/50 overflow-hidden animate-in fade-in duration-300"
@@ -42,7 +51,7 @@ export default function Login({ setLogin, openRegister }: LoginProps) {
                     </CardAction>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={onSubmit}>
                         <div className="flex flex-col gap-6">
                             <div className="grid gap-2">
                                 <Label htmlFor="email">Email</Label>

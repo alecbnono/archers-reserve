@@ -5,6 +5,7 @@ import { MOCK_USERS } from "@/data/mockUsers";
 interface AuthState {
     currentUser: User | null;
 
+    setCurrentUser: (user: User) => void;
     loginAs: (role: UserRole) => void;
     logout: () => void;
 
@@ -13,6 +14,9 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
     currentUser: null,
+
+    setCurrentUser: (user) => set({ currentUser: user }),
+
     loginAs: (role) => {
         const user = MOCK_USERS.find((u) => u.role === role) || null;
         set({ currentUser: user });

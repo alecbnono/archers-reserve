@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 const ACCESS_TOKEN_EXPIRY = "7d";
 export function generateAccessToken(payload) {
-    return jwt.sign(payload, process.env.JWT_SECRET, {
+    return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: ACCESS_TOKEN_EXPIRY,
     });
 }
@@ -12,7 +12,7 @@ export function requireAuth(req, res, next) {
         return;
     }
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
         req.user = decoded;
         next();
     }

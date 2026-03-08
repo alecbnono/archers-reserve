@@ -1,9 +1,11 @@
 import type { RegisterPayload } from "../types/auth.types";
+import type { User } from "~/types/user.types";
 
-const BASE_URL = "http://localhost:3000/auth";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const BASE_URL = `${API_URL}/auth`;
 
 export interface AuthResult {
-  user?: Record<string, unknown>;
+  user?: User;
   error?: string;
 }
 
@@ -44,5 +46,32 @@ export async function loginUser(
     return { error: data.error || "Login failed" };
   }
 
+  return { user: data.user };
+}
+
+export async function logoutUser(): Promise<{ error?: string }> {
+  const res = await fetch(`${BASE_URL}/logout`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const data = await res.json();
+    return { error: data.error || "Logout failed" };
+  }
+
+  return {};
+}
+
+export async function fetchCurrentUser(): Promise<AuthResult> {
+  const res = await fetch(`${BASE_URL}/me`, {
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    return { error: "Not authenticated" };
+  }
+
+  const data = await res.json();
   return { user: data.user };
 }

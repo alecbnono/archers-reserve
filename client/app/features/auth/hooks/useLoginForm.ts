@@ -2,8 +2,11 @@ import { useState } from "react";
 import type { CheckedState } from "@radix-ui/react-checkbox";
 import { isDlsuEmail } from "~/features/auth/services/auth.validation";
 import { loginUser } from "~/features/auth/services/auth.service";
+import { useAuthStore } from "~/store/user.store";
 
 export function useLoginForm() {
+  const setCurrentUser = useAuthStore((s) => s.setCurrentUser);
+
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -25,12 +28,14 @@ export function useLoginForm() {
     setForm((prev) => ({ ...prev, isRemembered: checked === true }));
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    e: React.FormEvent<HTMLFormElement>,
+  ): Promise<boolean> {
     e.preventDefault();
     setSubmitted(true);
     setServerError("");
 
-    if (!validationResult) return;
+    if (!validationResult) return false;
 
     try {
       const result = await loginUser(
@@ -41,12 +46,18 @@ export function useLoginForm() {
 
       if (result.error) {
         setServerError(result.error);
-        return;
+        return false;
       }
 
-      return result.user;
+      if (result.user) {
+        setCurrentUser(result.user);
+        return true;
+      }
+
+      return false;
     } catch {
       setServerError("Network error. Please try again.");
+      return false;
     }
   }
 

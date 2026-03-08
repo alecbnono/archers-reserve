@@ -1,20 +1,30 @@
 import * as authService from "./auth.service.js";
 import { generateAccessToken } from "../../middleware/token.js";
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-const COOKIE_OPTIONS = {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: SEVEN_DAYS_MS,
-};
+function buildCookieOptions(remember) {
+    const base = {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+    };
+    if (remember) {
+        return { ...base, maxAge: SEVEN_DAYS_MS };
+    }
+    return base;
+}
 export async function register(req, res) {
     const { firstName, lastName, username, email, password, role } = req.body;
     // Basic required fields validation
     if (!firstName || !lastName || !username || !email || !password || !role) {
-        res
-            .status(400)
-            .json({
+        res.status(400).json({
             error: "All fields are required: firstName, lastName, username, email, password, role",
+        });
+        return;
+    }
+    // Basic required fields validation
+    if (!email.endsWith("@dlsu.edu.ph")) {
+        res.status(400).json({
+            error: "Email must be a DLSU account",
         });
         return;
     }
@@ -30,10 +40,9 @@ export async function register(req, res) {
 }
 export async function login(req, res) {
     const { identifier, password } = req.body;
+    const remember = req.body.remember === true;
     if (!identifier || !password) {
-        res
-            .status(400)
-            .json({
+        res.status(400).json({
             error: "Identifier (username or email) and password are required",
         });
         return;
@@ -41,7 +50,7 @@ export async function login(req, res) {
     try {
         const { user, payload } = await authService.loginUser(identifier, password);
         const accessToken = generateAccessToken(payload);
-        res.cookie("accessToken", accessToken, COOKIE_OPTIONS);
+        res.cookie("accessToken", accessToken, buildCookieOptions(remember));
         res.status(200).json({ user });
     }
     catch (error) {
