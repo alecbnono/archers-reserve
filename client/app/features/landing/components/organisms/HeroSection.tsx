@@ -5,8 +5,8 @@ import { FaBook } from "react-icons/fa";
 
 import { useAuthStore } from "~/store/user.store";
 import { useState } from "react";
-import Login from "~/components/organisms/Login";
-import Registration from "~/components/organisms/Registration";
+import Login from "~/features/auth/components/organisms/Login";
+import Registration from "~/features/auth/components/organisms/Registration";
 
 export default function HeroSection() {
     const currentUser = useAuthStore((state) => state.currentUser);

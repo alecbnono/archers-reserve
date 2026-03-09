@@ -44,11 +44,11 @@ export default function ReserveLogRow({
                     <TableCell>
                         <Button variant="destructive">Delete</Button>
                     </TableCell>
-                    <Link to="/dashboard/lab">
-                        <TableCell>
+                    <TableCell>
+                        <Link to="/dashboard/lab">
                             <Button variant="secondary">Edit</Button>
-                        </TableCell>
-                    </Link>
+                        </Link>
+                    </TableCell>
                 </>
             ) : (
                 <></>

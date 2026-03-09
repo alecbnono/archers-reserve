@@ -1,4 +1,4 @@
-import type { LabType } from "@/types/lab.types";
+import type { LabType } from "@/types/labs.types";
 
 export const MOCK_LABS: LabType[] = [
     {
