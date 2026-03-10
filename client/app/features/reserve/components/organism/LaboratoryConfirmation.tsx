@@ -24,7 +24,6 @@ export default function LaboratoryConfirmation() {
                 >
                     {Array.from({ length: 22 }, (_, i) => i + 1).map((minutes) => (
                         <Timeslot
-                            key={minutes}
                             timeInMins={390 + minutes * 30}
                             capacity={20}
                             occupiedSeats={10}

@@ -29,12 +29,11 @@ export default function LaboratoryList() {
 
                         {Array.from({ length: 7 }, (_, i) => i + 1).map((day) => (
                             <TabsContent
-                                key={day}
                                 value={"jan-" + day.toString()}
                                 className="flex gap-2 flex-wrap w-full"
                             >
                                 {MOCK_LABS.map((lab) => (
-                                    <LaboratoryCard key={lab.id} lab={lab} />
+                                    <LaboratoryCard lab={lab} />
                                 ))}
                             </TabsContent>
                         ))}

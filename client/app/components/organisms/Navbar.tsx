@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/sheet";
 import { IoMenu } from "react-icons/io5";
 import { Link, NavLink } from "react-router";
-import Registration from "~/features/auth/components/organisms/Registration";
-import Login from "~/features/auth/components/organisms/Login";
+import Registration from "./Registration";
+import Login from "./Login";
 
 import { useAuthStore } from "~/store/user.store";
 
@@ -55,7 +55,7 @@ export default function Navbar() {
                     </div>
                 ) : (
                     <Link to="/dashboard/profile">
-                        <Button variant="outline">
+                        <Button variant="outline" onClick={openRegister}>
                             Dashboard
                         </Button>
                     </Link>

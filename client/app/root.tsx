@@ -6,14 +6,11 @@ import {
     Scripts,
     ScrollRestoration,
 } from "react-router";
-import { useEffect } from "react";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import type { Route } from "./+types/root";
 import "./app.css";
-import { fetchCurrentUser } from "~/features/auth/services/auth.service";
-import { useAuthStore } from "~/store/user.store";
 
 export const links: Route.LinksFunction = () => [
     { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -47,16 +44,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-    const setCurrentUser = useAuthStore((s) => s.setCurrentUser);
-
-    useEffect(() => {
-        fetchCurrentUser().then((result) => {
-            if (result.user) {
-                setCurrentUser(result.user);
-            }
-        });
-    }, [setCurrentUser]);
-
     return <Outlet />;
 }
 

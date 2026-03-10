@@ -51,7 +51,7 @@ export default function WeekSelection() {
                         <SelectLabel className="text-xs">Week</SelectLabel>
 
                         {Array.from({ length: 12 }, (_, i) => i + 1).map((week) => (
-                            <SelectItem key={week} value={week.toString()} className="text-xs">
+                            <SelectItem value={week.toString()} className="text-xs">
                                 Week {week}
                             </SelectItem>
                         ))}

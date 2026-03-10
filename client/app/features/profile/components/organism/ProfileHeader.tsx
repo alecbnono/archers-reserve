@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router";
 import { Button } from "~/components/ui/button";
 
 import {
@@ -9,22 +8,18 @@ import {
 
 import {
     Card,
+    CardAction,
     CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
 
 import { useAuthStore } from "~/store/user.store";
-import { logoutUser } from "~/features/auth/services/auth.service";
 
 export default function ProfileHeader() {
     const currentUser = useAuthStore((state) => state.currentUser);
-    const logout = useAuthStore((state) => state.logout);
-    const navigate = useNavigate();
-
-    async function handleLogout() {
-        await logoutUser();
-        logout();
-        navigate("/");
-    }
 
     return (
         <Card>
@@ -35,7 +30,7 @@ export default function ProfileHeader() {
                         alt=""
                         className="rounded-full aspect-square object-cover size-48"
                     />
-                    <div className="flex gap-8 items-center justify-between w-full">
+                    <div className="flex gap-8 items-center">
                         <div className="flex flex-col gap-2 ">
                             <h1 className="text-3xl font-bold">{`${currentUser?.firstName} ${currentUser?.lastName}`}</h1>
                             <p className="">{currentUser?.bio}</p>
@@ -44,7 +39,7 @@ export default function ProfileHeader() {
                             <Button variant="outline" className="w-full">
                                 Edit
                             </Button>
-                            <Button className="bg-neutral-500 w-full" onClick={handleLogout}>Log out</Button>
+                            <Button className="bg-neutral-500 w-full">Log out</Button>
                             <Tooltip>
                                 <TooltipTrigger>
                                     <Button

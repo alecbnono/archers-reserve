@@ -1,15 +1,10 @@
 export type UserRole = "STUDENT" | "FACULTY" | "ADMIN";
 
 export interface User {
-    id: number;
-    username: string;
+    id: string; // DLSU ID Number (e.g., "12212345")
     firstName: string;
     lastName: string;
     email: string;
     bio: string;
-    profilePictureUrl: string;
-    isAnonymous: boolean;
-    isPublic: boolean;
     role: UserRole;
-    createdAt: string;
 }

@@ -1,4 +1,4 @@
-import type { Route } from "./+types/profile";
+import type { Route } from "./+types/Profile";
 
 import ProfileHeader from "~/features/profile/components/organism/ProfileHeader";
 import ReserveLogs from "~/components/organisms/ReserveLogs";
