@@ -2,12 +2,33 @@
 -- All seeded users have password: password123
 
 -- Rooms
-INSERT INTO room (room_code, building_name, description) VALUES
-    ('LAB-001', 'Gokongwei', ''),
-    ('LAB-002', 'St. Joseph', ''),
-    ('LAB-003', 'Yuchengco', ''),
-    ('LAB-004', 'Andrew', ''),
-    ('LAB-005', 'Velasco', '');
+
+INSERT INTO rooms (room_code, building, floor, capacity) VALUES
+('A1904', 'Andrew Gonzales Hall', 19, 45),
+('C314', 'Connon Hall', 3, 35),
+('G210', 'Gokongwei Hall', 2, 30),
+('G211', 'Gokongwei Hall', 2, 30),
+('G302A', 'Gokongwei Hall', 3, 24),
+('G302B', 'Gokongwei Hall', 3, 24),
+('G304A', 'Gokongwei Hall', 3, 24),
+('G304B', 'Gokongwei Hall', 3, 45),
+('G306A', 'Gokongwei Hall', 3, 24),
+('G306B', 'Gokongwei Hall', 3, 24),
+('G404A', 'Gokongwei Hall', 4, 30),
+('G404B', 'Gokongwei Hall', 4, 30),
+('J212', 'St. Joseph Hall', 2, 20),
+('L212', 'St. La Salle Hall', 2, 18),
+('L229', 'St. La Salle Hall', 2, 48),
+('L320', 'St. La Salle Hall', 3, 39),
+('L335', 'St. La Salle Hall', 3, 44),
+('V103', 'Velasco Hall', 1, 29),
+('V205', 'Velasco Hall', 2, 24),
+('V206', 'Velasco Hall', 2, 24),
+('V208A', 'Velasco Hall', 2, 22),
+('V208B', 'Velasco Hall', 2, 22),
+('V301', 'Velasco Hall', 3, 35),
+('V310', 'Velasco Hall', 3, 28),
+('Y602', 'Yuchengco Hall', 6, 41);
 
 -- Users (explicit user_id via override)
 INSERT INTO "user" (user_id, username, first_name, last_name, email, password_hash, bio, profile_picture_url, is_anonymous, is_public, role) VALUES
@@ -39,13 +60,12 @@ INSERT INTO "user" (user_id, username, first_name, last_name, email, password_ha
 -- Reset user_id sequence to avoid conflicts with future inserts
 SELECT setval(pg_get_serial_sequence('"user"', 'user_id'), (SELECT MAX(user_id) FROM "user"));
 
--- Seats (5 seats per room)
-INSERT INTO seat (room_id, seat_id) VALUES
-    (1, 1), (1, 2), (1, 3), (1, 4), (1, 5),
-    (2, 1), (2, 2), (2, 3), (2, 4), (2, 5),
-    (3, 1), (3, 2), (3, 3), (3, 4), (3, 5),
-    (4, 1), (4, 2), (4, 3), (4, 4), (4, 5),
-    (5, 1), (5, 2), (5, 3), (5, 4), (5, 5);
+-- Seats (Automatically generated depending on capacity)
+INSERT INTO seats (room_id, seat_id)
+SELECT
+    r.room_id,
+    generate_series(1, r.capacity)
+FROM rooms r;
 
 -- Timeslots
 INSERT INTO timeslot (start_time, end_time) VALUES
