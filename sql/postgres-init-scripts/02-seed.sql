@@ -2,8 +2,7 @@
 -- All seeded users have password: password123
 
 -- Rooms
-
-INSERT INTO rooms (room_code, building, floor, capacity) VALUES
+INSERT INTO room (room_code, building, floor, capacity) VALUES
 ('A1904', 'Andrew Gonzales Hall', 19, 45),
 ('C314', 'Connon Hall', 3, 35),
 ('G210', 'Gokongwei Hall', 2, 30),
@@ -61,11 +60,11 @@ INSERT INTO "user" (user_id, username, first_name, last_name, email, password_ha
 SELECT setval(pg_get_serial_sequence('"user"', 'user_id'), (SELECT MAX(user_id) FROM "user"));
 
 -- Seats (Automatically generated depending on capacity)
-INSERT INTO seats (room_id, seat_id)
+INSERT INTO seat (room_id, seat_id)
 SELECT
     r.room_id,
     generate_series(1, r.capacity)
-FROM rooms r;
+FROM room r;
 
 -- Timeslots
 INSERT INTO timeslot (start_time, end_time) VALUES
