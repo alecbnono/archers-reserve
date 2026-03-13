@@ -10,6 +10,7 @@ import type {
 
 const SALT_ROUNDS = 10;
 const ALLOWED_REGISTER_ROLES: UserRole[] = ["STUDENT", "FACULTY"];
+const DEFAULT_BIO = "New ArcherReserve user.";
 
 function toSafeUser(row: DbUser): SafeUser {
   return {
@@ -68,8 +69,8 @@ export async function registerUser(
 
   // 4. Insert user (catch unique-violation race condition)
   const insertQuery = `
-        INSERT INTO "user" (username, first_name, last_name, email, password_hash, role)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO "user" (username, first_name, last_name, email, password_hash, role, bio)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
     `;
 
@@ -81,6 +82,7 @@ export async function registerUser(
       email,
       passwordHash,
       role,
+      DEFAULT_BIO,
     ]);
 
     return toSafeUser(result.rows[0] as DbUser);

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import type { AuthRequest } from "../../types/auth.types.js";
 import * as authService from "./auth.service.js";
 import { generateAccessToken } from "../../middleware/token.js";
+import { formatUserResponse } from "../../utils/user.utils.js";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -49,7 +50,7 @@ export async function register(req: Request, res: Response): Promise<void> {
       role,
     );
 
-    res.status(201).json({ user });
+    res.status(201).json({ user: formatUserResponse(user, req) });
   } catch (error: any) {
     res
       .status(error.status || 500)
@@ -73,7 +74,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     const accessToken = generateAccessToken(payload);
 
     res.cookie("accessToken", accessToken, buildCookieOptions(remember));
-    res.status(200).json({ user });
+    res.status(200).json({ user: formatUserResponse(user, req) });
   } catch (error: any) {
     res
       .status(error.status || 500)
@@ -93,7 +94,7 @@ export async function logout(_req: Request, res: Response): Promise<void> {
 export async function me(req: AuthRequest, res: Response): Promise<void> {
   try {
     const user = await authService.getUserById(req.user!.id);
-    res.status(200).json({ user });
+    res.status(200).json({ user: formatUserResponse(user, req as Request) });
   } catch (error: any) {
     res
       .status(error.status || 500)

@@ -75,3 +75,5 @@ export async function fetchCurrentUser(): Promise<AuthResult> {
   const data = await res.json();
   return { user: data.user };
 }
+
+
