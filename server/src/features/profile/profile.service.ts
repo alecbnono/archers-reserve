@@ -93,3 +93,32 @@ export async function updateBio(
 
   return toSafeUser(result.rows[0] as DbUser);
 }
+
+/**
+ * Delete the user's account and clean up any local avatar file.
+ * Reservations are cascade-deleted by the DB schema.
+ */
+export async function deleteAccount(userId: number): Promise<void> {
+  // 1. Fetch current avatar URL before deleting the row
+  const selectQuery = `SELECT profile_picture_url FROM "user" WHERE user_id = $1`;
+  const selectResult = await pool.query(selectQuery, [userId]);
+
+  if (selectResult.rows.length === 0) {
+    throw new AppError("User not found", 404);
+  }
+
+  const avatarUrl: string = selectResult.rows[0].profile_picture_url || "";
+
+  // 2. Delete the user row (cascades reservations)
+  await pool.query(`DELETE FROM "user" WHERE user_id = $1`, [userId]);
+
+  // 3. Clean up local avatar file if it exists
+  if (avatarUrl.startsWith("/uploads/profile/")) {
+    const absolute = path.resolve("." + avatarUrl);
+    try {
+      await fs.unlink(absolute);
+    } catch {
+      // File may already be gone — not critical
+    }
+  }
+}

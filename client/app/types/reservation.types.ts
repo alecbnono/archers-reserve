@@ -1,20 +1,20 @@
+export type ReservationStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
+
 export type ReservationType = {
-    id: number;
-    requestTime: string;
-    startTime: string;
-    building: string;
-    room: string;
-    seatRow: string;
-    seatCol: number;
-    firstName: string;
-    lastName: string;
-    email: string;
-};
-
-export type ReservationProp = {
-    reservation: ReservationType;
-};
-
-export type TableType = {
-    title: string;
+  reservationId: number;
+  requestTime: string;
+  reservationDate: string;
+  startTime: string;
+  endTime: string;
+  building: string;
+  roomCode: string;
+  seatId: number;
+  isAnonymous: boolean;
+  status: ReservationStatus;
+  cancelledAt: string | null;
+  // Admin-only fields
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: string;
 };

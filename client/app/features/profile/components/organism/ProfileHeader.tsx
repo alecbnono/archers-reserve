@@ -14,6 +14,7 @@ import {
 
 import { useAuthStore } from "~/store/user.store";
 import { logoutUser } from "~/features/auth/services/auth.service";
+import { deleteAccount } from "~/features/profile/services/profile.service";
 import { useAvatarUpload } from "~/features/profile/hooks/useAvatarUpload";
 import { useBioEdit } from "~/features/profile/hooks/useBioEdit";
 
@@ -43,6 +44,22 @@ export default function ProfileHeader() {
 
     async function handleLogout() {
         await logoutUser();
+        logout();
+        navigate("/");
+    }
+
+    async function handleDeleteAccount() {
+        const confirmed = window.confirm(
+            "Are you sure you want to delete your account? This action cannot be undone."
+        );
+        if (!confirmed) return;
+
+        const result = await deleteAccount();
+        if (result.error) {
+            alert(result.error);
+            return;
+        }
+
         logout();
         navigate("/");
     }
@@ -120,6 +137,7 @@ export default function ProfileHeader() {
                                     <Button
                                         className="hover:text-white text-black"
                                         variant="destructive"
+                                        onClick={handleDeleteAccount}
                                     >
                                         Delete
                                     </Button>

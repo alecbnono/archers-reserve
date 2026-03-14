@@ -43,3 +43,17 @@ export async function updateBio(bio: string): Promise<ProfileResult> {
 
   return { user: data.user };
 }
+
+export async function deleteAccount(): Promise<{ error?: string }> {
+  const res = await fetch(`${PROFILE_URL}/me`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const data = await res.json();
+    return { error: data.error || "Failed to delete account" };
+  }
+
+  return {};
+}
