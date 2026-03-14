@@ -45,3 +45,25 @@ export async function updateBio(
       .json({ error: error.message || "Internal server error" });
   }
 }
+
+export async function deleteAccount(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
+  try {
+    await profileService.deleteAccount(req.user!.id);
+
+    // Clear auth cookie (same settings as logout)
+    res.clearCookie("accessToken", {
+      httpOnly: true,
+      sameSite: "lax" as const,
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error: any) {
+    res
+      .status(error.status || 500)
+      .json({ error: error.message || "Internal server error" });
+  }
+}

@@ -1,5 +1,6 @@
 import * as authService from "./auth.service.js";
 import { generateAccessToken } from "../../middleware/token.js";
+import { formatUserResponse } from "../../utils/user.utils.js";
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 function buildCookieOptions(remember) {
     const base = {
@@ -30,7 +31,7 @@ export async function register(req, res) {
     }
     try {
         const user = await authService.registerUser(firstName, lastName, username, email, password, role);
-        res.status(201).json({ user });
+        res.status(201).json({ user: formatUserResponse(user, req) });
     }
     catch (error) {
         res
@@ -51,7 +52,7 @@ export async function login(req, res) {
         const { user, payload } = await authService.loginUser(identifier, password);
         const accessToken = generateAccessToken(payload);
         res.cookie("accessToken", accessToken, buildCookieOptions(remember));
-        res.status(200).json({ user });
+        res.status(200).json({ user: formatUserResponse(user, req) });
     }
     catch (error) {
         res
@@ -70,7 +71,7 @@ export async function logout(_req, res) {
 export async function me(req, res) {
     try {
         const user = await authService.getUserById(req.user.id);
-        res.status(200).json({ user });
+        res.status(200).json({ user: formatUserResponse(user, req) });
     }
     catch (error) {
         res

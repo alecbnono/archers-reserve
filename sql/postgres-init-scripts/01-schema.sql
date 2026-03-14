@@ -45,5 +45,6 @@ CREATE TABLE IF NOT EXISTS reservation (
     request_time   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_anonymous   BOOLEAN DEFAULT FALSE,
     is_recurring   BOOLEAN DEFAULT FALSE,
+    cancelled_at   TIMESTAMP DEFAULT NULL,
     FOREIGN KEY (room_id, seat_id) REFERENCES seat(room_id, seat_id) ON DELETE CASCADE
 );

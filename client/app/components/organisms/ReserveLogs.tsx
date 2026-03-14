@@ -1,7 +1,6 @@
 import {
     Table,
     TableBody,
-    TableCaption,
     TableCell,
     TableHead,
     TableHeader,
@@ -10,22 +9,25 @@ import {
 
 import {
     Card,
-    CardAction,
     CardContent,
-    CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
 
 import ReserveLogRow from "../molecule/ReserveLogRow";
 
-import { MOCK_RESERVATIONS } from "~/data/mockReservations";
+import type { ReservationType } from "~/types/reservation.types";
 
 export default function ReserveLogs({
+    reservations,
+    isLoading,
+    error,
     canManage,
     isAdmin,
 }: {
+    reservations: ReservationType[];
+    isLoading: boolean;
+    error: string;
     canManage: boolean;
     isAdmin: boolean;
 }) {
@@ -35,46 +37,56 @@ export default function ReserveLogs({
                 <CardTitle>Reservations</CardTitle>
             </CardHeader>
             <CardContent>
-                <Table className="grow w-full">
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[100px]">Reserve ID</TableHead>
-                            <TableHead>Request Time</TableHead>
-                            <TableHead>Start Time</TableHead>
-                            <TableHead>Building</TableHead>
-                            <TableHead>Room</TableHead>
-
-                            <TableHead>Seat Number</TableHead>
-                            {isAdmin === true ? (
-                                <>
-                                    <TableHead>First Name</TableHead>
-                                    <TableHead>Last Name</TableHead>
-                                </>
-                            ) : (
-                                <></>
-                            )}
-
-                            {canManage === true ? (
-                                <>
-                                    <TableHead>Cancel</TableHead>
-                                    <TableHead>Edit</TableHead>
-                                </>
-                            ) : (
-                                <></>
-                            )}
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {MOCK_RESERVATIONS.map((reservation) => (
-                            <ReserveLogRow
-                                key={reservation.id}
-                                reservation={reservation}
-                                canManage={canManage}
-                                isAdmin={isAdmin}
-                            />
-                        ))}
-                    </TableBody>
-                </Table>
+                {isLoading ? (
+                    <p className="text-muted-foreground text-center py-8">
+                        Loading reservations...
+                    </p>
+                ) : error ? (
+                    <p className="text-destructive text-center py-8">{error}</p>
+                ) : reservations.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                        No reservations found.
+                    </p>
+                ) : (
+                    <Table className="grow w-full">
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[100px]">Reserve ID</TableHead>
+                                <TableHead>Request Time</TableHead>
+                                <TableHead>Reservation Date</TableHead>
+                                <TableHead>Time Slot</TableHead>
+                                <TableHead>Building</TableHead>
+                                <TableHead>Room</TableHead>
+                                <TableHead>Seat</TableHead>
+                                {isAdmin && (
+                                    <>
+                                        <TableHead>Reserved By</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Role</TableHead>
+                                    </>
+                                )}
+                                <TableHead>Anonymized</TableHead>
+                                <TableHead>Status</TableHead>
+                                {canManage && (
+                                    <>
+                                        <TableHead>Cancel</TableHead>
+                                        <TableHead>Edit</TableHead>
+                                    </>
+                                )}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {reservations.map((reservation) => (
+                                <ReserveLogRow
+                                    key={reservation.reservationId}
+                                    reservation={reservation}
+                                    canManage={canManage}
+                                    isAdmin={isAdmin}
+                                />
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
             </CardContent>
         </Card>
     );

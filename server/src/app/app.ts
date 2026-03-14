@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRoutes from "../features/auth/auth.routes.js";
 import profileRoutes from "../features/profile/profile.routes.js";
+import reservationRoutes from "../features/reservation/reservation.routes.js";
 
 const app: Application = express();
 
@@ -23,5 +24,6 @@ app.use("/uploads", express.static(path.resolve("uploads")));
 // Feature Routes
 app.use("/auth", authRoutes);
 app.use("/profile", profileRoutes);
+app.use("/reservations", reservationRoutes);
 
 export default app;

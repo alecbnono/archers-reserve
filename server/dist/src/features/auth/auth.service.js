@@ -3,6 +3,7 @@ import pool from "../../app/db.js";
 import { AppError } from "../../utils/AppError.js";
 const SALT_ROUNDS = 10;
 const ALLOWED_REGISTER_ROLES = ["STUDENT", "FACULTY"];
+const DEFAULT_BIO = "New ArcherReserve user.";
 function toSafeUser(row) {
     return {
         id: row.user_id,
@@ -47,8 +48,8 @@ export async function registerUser(firstName, lastName, username, email, passwor
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     // 4. Insert user (catch unique-violation race condition)
     const insertQuery = `
-        INSERT INTO "user" (username, first_name, last_name, email, password_hash, role)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO "user" (username, first_name, last_name, email, password_hash, role, bio)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
     `;
     try {
@@ -59,6 +60,7 @@ export async function registerUser(firstName, lastName, username, email, passwor
             email,
             passwordHash,
             role,
+            DEFAULT_BIO,
         ]);
         return toSafeUser(result.rows[0]);
     }
