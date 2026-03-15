@@ -1,46 +1,118 @@
+import { randomUUID } from "crypto";
 import pool from "../../app/db.js";
+import { AppError } from "../../utils/AppError.js";
+// ─── Time helpers (server-side, for merged timeslot display) ───────────
 /**
- * Derive reservation status by comparing request_date + timeslot times
- * against the current timestamp, all done in SQL for correctness.
+ * Parse a DB time string ("HH:MM:SS", "HH:MM") or ISO datetime into
+ * total minutes since midnight.
  */
-const BASE_SELECT = `
-  SELECT
-    r.reservation_id,
-    r.request_time,
-    r.request_date,
-    t.start_time,
-    t.end_time,
-    rm.building,
-    rm.room_code,
-    r.seat_id,
-    r.is_anonymous,
-    r.cancelled_at,
-    CASE
-      WHEN r.cancelled_at IS NOT NULL                THEN 'CANCELLED'
-      WHEN NOW() < (r.request_date + t.start_time)  THEN 'UPCOMING'
-      WHEN NOW() >= (r.request_date + t.start_time)
-       AND NOW() <= (r.request_date + t.end_time)    THEN 'ONGOING'
-      ELSE 'COMPLETED'
-    END AS status
-  FROM reservation r
-  JOIN timeslot t  ON t.timeslot_id = r.timeslot_id
-  JOIN room     rm ON rm.room_id    = r.room_id
-`;
-function mapRow(row) {
+function toMinutes(time) {
+    const iso = String(time).match(/T(\d{2}):(\d{2})/);
+    if (iso)
+        return parseInt(iso[1], 10) * 60 + parseInt(iso[2], 10);
+    const parts = String(time).split(":");
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+}
+/** Format total minutes to "h:mm AM/PM". */
+function fmtMinutes(mins) {
+    const h24 = Math.floor(mins / 60);
+    const m = mins % 60;
+    const period = h24 >= 12 ? "PM" : "AM";
+    const h12 = h24 % 12 || 12;
+    return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+/** Format a DB time string to 12-hour. */
+function fmt12h(time) {
+    return fmtMinutes(toMinutes(time));
+}
+/**
+ * Normalize a date value (ISO datetime, Date object, or plain string)
+ * into a "YYYY-MM-DD" string safe for the client.
+ */
+function toYyyyMmDd(value) {
+    const s = String(value).trim();
+    // Already YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s))
+        return s;
+    // ISO datetime -> take the date portion
+    if (/^\d{4}-\d{2}-\d{2}T/.test(s))
+        return s.slice(0, 10);
+    // Fallback: try parsing as Date
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+    }
+    // Last resort: return the original string
+    return s;
+}
+/**
+ * Merge an array of {startTime, endTime} into contiguous ranges and
+ * return a human-readable string like "7:00 AM - 8:00 AM, 8:30 AM - 9:00 AM".
+ * Expects the array to be pre-sorted by startTime.
+ */
+function mergeTimeslotRanges(slots) {
+    if (slots.length === 0)
+        return "";
+    const sorted = [...slots].sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
+    const groups = [];
+    let cur = { start: sorted[0].startTime, end: sorted[0].endTime };
+    for (let i = 1; i < sorted.length; i++) {
+        if (toMinutes(sorted[i].startTime) === toMinutes(cur.end)) {
+            cur = { start: cur.start, end: sorted[i].endTime };
+        }
+        else {
+            groups.push(cur);
+            cur = { start: sorted[i].startTime, end: sorted[i].endTime };
+        }
+    }
+    groups.push(cur);
+    return groups
+        .map((g) => `${fmt12h(g.start)} - ${fmt12h(g.end)}`)
+        .join(", ");
+}
+/**
+ * Derive a single group status from the set of per-row statuses.
+ * Priority: ONGOING > UPCOMING > COMPLETED > CANCELLED
+ * (If ANY row is ongoing the batch is ongoing; if all cancelled it's cancelled; etc.)
+ */
+function deriveGroupStatus(statuses) {
+    const set = new Set(statuses);
+    if (set.has("ONGOING"))
+        return "ONGOING";
+    if (set.has("UPCOMING"))
+        return "UPCOMING";
+    if (set.has("COMPLETED"))
+        return "COMPLETED";
+    return "CANCELLED";
+}
+function mapGroupedRow(row) {
+    // Distinct seats
+    const uniqueSeats = [...new Set(row.seat_ids)].sort((a, b) => a - b);
+    const seatLabel = uniqueSeats.length > 1 ? "ALL" : String(uniqueSeats[0]);
+    // Merge timeslots into display string — deduplicate first
+    const slotMap = new Map();
+    for (let i = 0; i < row.start_times.length; i++) {
+        const key = `${row.start_times[i]}-${row.end_times[i]}`;
+        if (!slotMap.has(key)) {
+            slotMap.set(key, { startTime: row.start_times[i], endTime: row.end_times[i] });
+        }
+    }
+    const timeSlot = mergeTimeslotRanges([...slotMap.values()]);
     const mapped = {
-        reservationId: row.reservation_id,
+        batchId: row.batch_key,
         requestTime: row.request_time,
-        reservationDate: row.request_date,
-        startTime: row.start_time,
-        endTime: row.end_time,
+        reservationDate: toYyyyMmDd(row.request_date),
+        timeSlot,
         building: row.building,
         roomCode: row.room_code,
-        seatId: row.seat_id,
+        seatLabel,
         isAnonymous: row.is_anonymous,
-        status: row.status,
+        status: deriveGroupStatus(row.statuses),
         cancelledAt: row.cancelled_at ?? null,
     };
-    // Attach user fields when present (admin query)
     if (row.first_name !== undefined) {
         mapped.firstName = row.first_name;
         mapped.lastName = row.last_name;
@@ -50,53 +122,326 @@ function mapRow(row) {
     return mapped;
 }
 /**
- * Get all reservations belonging to a single user.
+ * Base grouped SELECT used for both user and admin queries.
+ * Groups by batch_key (reservation_batch_id with fallback for legacy rows).
+ * The per-row status is computed inside the aggregate so the group can
+ * derive a single status.
+ */
+const GROUPED_SELECT_COLUMNS = `
+    COALESCE(r.reservation_batch_id::text, 'legacy-' || r.reservation_id::text) AS batch_key,
+    MIN(r.request_time)      AS request_time,
+    r.request_date,
+    MIN(rm.building)         AS building,
+    MIN(rm.room_code)        AS room_code,
+    BOOL_OR(r.is_anonymous)  AS is_anonymous,
+    MAX(r.cancelled_at)      AS cancelled_at,
+    ARRAY_AGG(DISTINCT r.seat_id)                         AS seat_ids,
+    ARRAY_AGG(t.start_time ORDER BY t.start_time)         AS start_times,
+    ARRAY_AGG(t.end_time   ORDER BY t.start_time)         AS end_times,
+    ARRAY_AGG(
+      CASE
+        WHEN r.cancelled_at IS NOT NULL                THEN 'CANCELLED'
+        WHEN NOW() < (r.request_date + t.start_time)   THEN 'UPCOMING'
+        WHEN NOW() >= (r.request_date + t.start_time)
+         AND NOW() <= (r.request_date + t.end_time)    THEN 'ONGOING'
+        ELSE 'COMPLETED'
+      END
+    ) AS statuses
+`;
+const GROUPED_GROUP_BY = `
+  GROUP BY batch_key, r.request_date
+  ORDER BY r.request_date DESC, MIN(t.start_time) DESC
+`;
+/**
+ * Get all reservations belonging to a single user, grouped by batch.
  * Used on the profile page (GET /reservations/me).
  */
 export async function getUserReservations(userId) {
     const query = `
-    ${BASE_SELECT}
+    SELECT
+      ${GROUPED_SELECT_COLUMNS}
+    FROM reservation r
+    JOIN timeslot t  ON t.timeslot_id = r.timeslot_id
+    JOIN room     rm ON rm.room_id    = r.room_id
     WHERE r.user_id = $1
-    ORDER BY r.request_date DESC, t.start_time DESC
+    ${GROUPED_GROUP_BY}
   `;
     const result = await pool.query(query, [userId]);
-    return result.rows.map(mapRow);
+    return result.rows.map(mapGroupedRow);
 }
 /**
- * Get all reservations across all users (admin).
+ * Get all reservations across all users (admin), grouped by batch.
  * Joins user table for name/email/role columns.
  * Used on the admin logs page (GET /reservations).
  */
 export async function getAllReservations() {
     const query = `
     SELECT
-      r.reservation_id,
-      r.request_time,
-      r.request_date,
-      t.start_time,
-      t.end_time,
-      rm.building,
-      rm.room_code,
-      r.seat_id,
-      r.is_anonymous,
-      r.cancelled_at,
-      CASE
-        WHEN r.cancelled_at IS NOT NULL                THEN 'CANCELLED'
-        WHEN NOW() < (r.request_date + t.start_time)  THEN 'UPCOMING'
-        WHEN NOW() >= (r.request_date + t.start_time)
-         AND NOW() <= (r.request_date + t.end_time)    THEN 'ONGOING'
-        ELSE 'COMPLETED'
-      END AS status,
-      u.first_name,
-      u.last_name,
-      u.email,
-      u.role
+      ${GROUPED_SELECT_COLUMNS},
+      MIN(u.first_name) AS first_name,
+      MIN(u.last_name)  AS last_name,
+      MIN(u.email)      AS email,
+      MIN(u.role)        AS role
     FROM reservation r
     JOIN timeslot t  ON t.timeslot_id = r.timeslot_id
     JOIN room     rm ON rm.room_id    = r.room_id
     JOIN "user"   u  ON u.user_id     = r.user_id
-    ORDER BY r.request_date DESC, t.start_time DESC
+    ${GROUPED_GROUP_BY}
   `;
     const result = await pool.query(query);
-    return result.rows.map(mapRow);
+    return result.rows.map(mapGroupedRow);
+}
+// ─── Availability ─────────────────────────────────────────────────────
+/**
+ * Get availability for a specific room on a specific date.
+ * Returns all timeslots with their occupancy counts and reserved seat IDs.
+ * Only counts active reservations (cancelled_at IS NULL).
+ *
+ * Capacity is derived from actual seat rows in the seat table (authoritative),
+ * not from room.capacity, so occupancy numerics can reach full (e.g. 24/24).
+ */
+export async function getAvailability(roomId, date) {
+    // 1. Fetch the room
+    const roomResult = await pool.query(`SELECT room_id, room_code, building, floor, capacity
+     FROM room WHERE room_id = $1`, [roomId]);
+    if (roomResult.rows.length === 0) {
+        throw new AppError("Room not found", 404);
+    }
+    const roomRow = roomResult.rows[0];
+    // 2. Get authoritative seat count from seat table
+    const seatCountResult = await pool.query(`SELECT COUNT(*)::int AS seat_count FROM seat WHERE room_id = $1`, [roomId]);
+    const seatCount = seatCountResult.rows[0].seat_count;
+    const room = {
+        roomId: roomRow.room_id,
+        roomCode: roomRow.room_code,
+        building: roomRow.building,
+        floor: roomRow.floor,
+        capacity: seatCount, // authoritative seat count
+    };
+    // 3. Fetch all timeslots
+    const timeslotResult = await pool.query(`SELECT timeslot_id, start_time, end_time
+     FROM timeslot
+     ORDER BY start_time`);
+    // 4. Fetch active reservations for this room + date
+    const reservationResult = await pool.query(`SELECT timeslot_id, seat_id
+     FROM reservation
+     WHERE room_id = $1
+       AND request_date = $2
+       AND cancelled_at IS NULL`, [roomId, date]);
+    // Group reserved seats by timeslot
+    const reservedByTimeslot = new Map();
+    for (const row of reservationResult.rows) {
+        const tsId = row.timeslot_id;
+        if (!reservedByTimeslot.has(tsId)) {
+            reservedByTimeslot.set(tsId, []);
+        }
+        reservedByTimeslot.get(tsId).push(row.seat_id);
+    }
+    // 5. Build timeslot availability
+    const timeslots = timeslotResult.rows.map((row) => {
+        const tsId = row.timeslot_id;
+        const reservedSeatIds = reservedByTimeslot.get(tsId) ?? [];
+        return {
+            timeslotId: tsId,
+            startTime: row.start_time,
+            endTime: row.end_time,
+            occupiedSeats: reservedSeatIds.length,
+            reservedSeatIds,
+        };
+    });
+    return { room, date, timeslots };
+}
+/**
+ * Create reservations for a user. All-or-nothing semantics.
+ *
+ * - Single seat: inserts one row per timeslot for the given seat.
+ * - reserveAll: inserts one row per (seat x timeslot) for every seat in the room.
+ *
+ * All rows in a single submit share the same reservation_batch_id UUID.
+ *
+ * FACULTY/ADMIN can override (soft-cancel) conflicting STUDENT reservations.
+ * If any conflict belongs to FACULTY or ADMIN, the entire request is rejected.
+ */
+export async function createReservation(input) {
+    const { userId, userRole, roomId, date, timeslotIds, seatId, reserveAll, isAnonymous, } = input;
+    // --- Validate room exists and get capacity ---
+    const roomResult = await pool.query(`SELECT room_id, capacity FROM room WHERE room_id = $1`, [roomId]);
+    if (roomResult.rows.length === 0) {
+        throw new AppError("Room not found", 404);
+    }
+    // --- Validate timeslots exist ---
+    const tsResult = await pool.query(`SELECT timeslot_id FROM timeslot WHERE timeslot_id = ANY($1::int[])`, [timeslotIds]);
+    if (tsResult.rows.length !== timeslotIds.length) {
+        throw new AppError("One or more timeslot IDs are invalid", 400);
+    }
+    // --- Reject any timeslots whose start time has already passed on the requested date ---
+    const pastCheck = await pool.query(`SELECT timeslot_id
+     FROM timeslot
+     WHERE timeslot_id = ANY($1::int[])
+       AND (($2::date + start_time)::timestamp <= NOW())`, [timeslotIds, date]);
+    if (pastCheck.rows.length > 0) {
+        throw new AppError("One or more selected timeslots have already passed", 400);
+    }
+    // --- Resolve target seat IDs ---
+    let targetSeatIds;
+    if (reserveAll) {
+        if (userRole === "STUDENT") {
+            throw new AppError("Students cannot reserve all seats", 403);
+        }
+        const seatResult = await pool.query(`SELECT seat_id FROM seat WHERE room_id = $1 ORDER BY seat_id`, [roomId]);
+        targetSeatIds = seatResult.rows.map((r) => r.seat_id);
+        if (targetSeatIds.length === 0) {
+            throw new AppError("Room has no seats", 400);
+        }
+    }
+    else {
+        if (seatId == null) {
+            throw new AppError("seatId is required when reserveAll is false", 400);
+        }
+        const seatCheck = await pool.query(`SELECT 1 FROM seat WHERE room_id = $1 AND seat_id = $2`, [roomId, seatId]);
+        if (seatCheck.rows.length === 0) {
+            throw new AppError("Seat not found in this room", 404);
+        }
+        targetSeatIds = [seatId];
+    }
+    // --- Generate a batch UUID for this entire submission ---
+    const batchId = randomUUID();
+    // --- Begin transaction ---
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        // 1. Find all active conflicting reservations
+        const conflictResult = await client.query(`SELECT r.reservation_id, r.seat_id, r.timeslot_id, u.role AS owner_role
+       FROM reservation r
+       JOIN "user" u ON u.user_id = r.user_id
+       WHERE r.room_id = $1
+         AND r.request_date = $2
+         AND r.timeslot_id = ANY($3::int[])
+         AND r.seat_id = ANY($4::int[])
+         AND r.cancelled_at IS NULL`, [roomId, date, timeslotIds, targetSeatIds]);
+        const conflicts = conflictResult.rows;
+        if (conflicts.length > 0) {
+            const canOverride = userRole === "FACULTY" || userRole === "ADMIN";
+            if (!canOverride) {
+                await client.query("ROLLBACK");
+                throw new AppError("One or more selected slots are already reserved", 409);
+            }
+            const nonStudentConflict = conflicts.find((c) => c.owner_role !== "STUDENT");
+            if (nonStudentConflict) {
+                await client.query("ROLLBACK");
+                throw new AppError("Cannot override reservation owned by faculty or admin", 409);
+            }
+            // Soft-cancel all conflicting student reservations
+            const conflictIds = conflicts.map((c) => c.reservation_id);
+            await client.query(`UPDATE reservation
+         SET cancelled_at = NOW()
+         WHERE reservation_id = ANY($1::int[])`, [conflictIds]);
+        }
+        // 2. Insert new reservations for every (seat x timeslot)
+        const rows = [];
+        for (const sid of targetSeatIds) {
+            for (const tid of timeslotIds) {
+                rows.push([batchId, userId, sid, roomId, tid, date, isAnonymous]);
+            }
+        }
+        // Build a multi-row INSERT
+        const valuePlaceholders = [];
+        const params = [];
+        let idx = 1;
+        for (const [bid, uid, sid, rid, tid, d, anon] of rows) {
+            valuePlaceholders.push(`($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6})`);
+            params.push(bid, uid, sid, rid, tid, d, anon);
+            idx += 7;
+        }
+        await client.query(`INSERT INTO reservation (reservation_batch_id, user_id, seat_id, room_id, timeslot_id, request_date, is_anonymous)
+       VALUES ${valuePlaceholders.join(", ")}`, params);
+        await client.query("COMMIT");
+        return {
+            createdCount: rows.length,
+            overriddenCount: conflicts.length,
+        };
+    }
+    catch (err) {
+        await client.query("ROLLBACK").catch(() => { });
+        if (err instanceof AppError)
+            throw err;
+        if (err.code === "23505") {
+            throw new AppError("One or more selected slots are already reserved (race condition)", 409);
+        }
+        throw new AppError("Failed to create reservation", 500);
+    }
+    finally {
+        client.release();
+    }
+}
+/**
+ * Cancel an entire reservation batch (all-or-nothing).
+ *
+ * - Resolves target rows by reservation_batch_id.
+ * - For legacy rows (batch_key = "legacy-{id}"), resolves by reservation_id.
+ * - Only the batch owner or an ADMIN can cancel.
+ * - Only UPCOMING batches can be cancelled (all rows must be upcoming & active).
+ */
+export async function cancelReservationBatch(batchId, actorUserId, actorRole) {
+    // Determine whether this is a legacy single-row key
+    const isLegacy = batchId.startsWith("legacy-");
+    // 1. Fetch all active (non-cancelled) rows for this batch
+    let fetchQuery;
+    let fetchParams;
+    if (isLegacy) {
+        const reservationId = parseInt(batchId.replace("legacy-", ""), 10);
+        if (isNaN(reservationId) || reservationId <= 0) {
+            throw new AppError("Invalid batch ID", 400);
+        }
+        fetchQuery = `
+      SELECT r.reservation_id, r.user_id, r.cancelled_at,
+             (r.request_date + t.start_time)::timestamp AS slot_start
+      FROM reservation r
+      JOIN timeslot t ON t.timeslot_id = r.timeslot_id
+      WHERE r.reservation_id = $1
+    `;
+        fetchParams = [reservationId];
+    }
+    else {
+        // Validate UUID format
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(batchId)) {
+            throw new AppError("Invalid batch ID", 400);
+        }
+        fetchQuery = `
+      SELECT r.reservation_id, r.user_id, r.cancelled_at,
+             (r.request_date + t.start_time)::timestamp AS slot_start
+      FROM reservation r
+      JOIN timeslot t ON t.timeslot_id = r.timeslot_id
+      WHERE r.reservation_batch_id = $1
+    `;
+        fetchParams = [batchId];
+    }
+    const fetchResult = await pool.query(fetchQuery, fetchParams);
+    if (fetchResult.rows.length === 0) {
+        throw new AppError("Reservation batch not found", 404);
+    }
+    const rows = fetchResult.rows;
+    // 2. Permission check: owner or ADMIN
+    const ownerUserId = rows[0].user_id;
+    if (actorUserId !== ownerUserId && actorRole !== "ADMIN") {
+        throw new AppError("You do not have permission to cancel this reservation", 403);
+    }
+    // 3. Validate all rows are cancellable
+    const now = new Date();
+    for (const row of rows) {
+        if (row.cancelled_at !== null) {
+            throw new AppError("This reservation has already been cancelled", 409);
+        }
+        const slotStart = new Date(row.slot_start);
+        if (now >= slotStart) {
+            throw new AppError("Cannot cancel a reservation that has already started or completed", 409);
+        }
+    }
+    // 4. Soft-cancel all rows in the batch
+    const ids = rows.map((r) => r.reservation_id);
+    const updateResult = await pool.query(`UPDATE reservation
+     SET cancelled_at = NOW()
+     WHERE reservation_id = ANY($1::int[])
+       AND cancelled_at IS NULL`, [ids]);
+    return { cancelledCount: updateResult.rowCount ?? 0 };
 }

@@ -1,11 +1,7 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import {
     Field,
-    FieldContent,
-    FieldDescription,
-    FieldGroup,
     FieldLabel,
-    FieldTitle,
 } from "@/components/ui/field";
 import {
     Select,
@@ -19,8 +15,15 @@ import {
 
 import { useState } from "react";
 import { useAuthStore } from "~/store/user.store";
+import type { WeekOption } from "~/features/reserve/utils/date";
 
-export default function WeekSelection() {
+type WeekSelectionProps = {
+    weeks: WeekOption[];
+    value: number;
+    onChange: (weekNumber: number) => void;
+};
+
+export default function WeekSelection({ weeks, value, onChange }: WeekSelectionProps) {
     const currentUser = useAuthStore((state) => state.currentUser);
 
     const [checked, setChecked] = useState(false);
@@ -42,17 +45,25 @@ export default function WeekSelection() {
             ) : (
                 <></>
             )}
-            <Select disabled={checked}>
-                <SelectTrigger className="w-full max-w-48 text-xs">
+            <Select
+                disabled={checked}
+                value={value.toString()}
+                onValueChange={(v) => onChange(Number(v))}
+            >
+                <SelectTrigger className="w-full max-w-64 text-xs">
                     <SelectValue placeholder="Week" className="text-xs" />
                 </SelectTrigger>
                 <SelectContent className="text-xs">
                     <SelectGroup>
                         <SelectLabel className="text-xs">Week</SelectLabel>
-
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map((week) => (
-                            <SelectItem key={week} value={week.toString()} className="text-xs">
-                                Week {week}
+                        {weeks.map((week) => (
+                            <SelectItem
+                                key={week.weekNumber}
+                                value={week.weekNumber.toString()}
+                                className="text-xs"
+                                disabled={week.isPast}
+                            >
+                                {week.label}
                             </SelectItem>
                         ))}
                     </SelectGroup>

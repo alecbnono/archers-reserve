@@ -25,3 +25,11 @@ export const formatDateTime = (isoString: string) => {
 
     return { datePart, timePart };
 };
+
+/** Tailwind classes for each reservation status badge. */
+export const STATUS_STYLES: Record<string, string> = {
+    UPCOMING: "text-blue-600 font-semibold",
+    ONGOING: "text-green-600 font-semibold",
+    COMPLETED: "text-muted-foreground",
+    CANCELLED: "text-red-600 font-semibold",
+};

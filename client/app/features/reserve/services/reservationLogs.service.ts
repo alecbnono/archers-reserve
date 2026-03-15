@@ -41,3 +41,35 @@ export async function fetchAllReservations(): Promise<ReservationListResult> {
 
   return { reservations: data.reservations };
 }
+
+// ─── Cancellation ─────────────────────────────────────────────────────
+
+export interface CancelReservationResult {
+  message?: string;
+  cancelledCount?: number;
+  error?: string;
+}
+
+/**
+ * Cancel an entire reservation batch (PATCH /reservations/:batchId/cancel).
+ */
+export async function cancelReservationBatch(
+  batchId: string,
+): Promise<CancelReservationResult> {
+  try {
+    const res = await fetch(`${BASE_URL}/${encodeURIComponent(batchId)}/cancel`, {
+      method: "PATCH",
+      credentials: "include",
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return { error: data.error || "Failed to cancel reservation" };
+    }
+
+    return { message: data.message, cancelledCount: data.cancelledCount };
+  } catch {
+    return { error: "Network error cancelling reservation" };
+  }
+}

@@ -12,6 +12,7 @@ interface SeatSelectionProps {
     selectedSeat: number | null;
     reserveAll: boolean;
     isAnonymous: boolean;
+    occupiedSeatIds: number[];
     onSeatSelect: (seat: number | null) => void;
     onReserveAllChange: (value: boolean) => void;
     onAnonymousChange: (value: boolean) => void;
@@ -22,6 +23,7 @@ export default function SeatSelection({
     selectedSeat,
     reserveAll,
     isAnonymous,
+    occupiedSeatIds,
     onSeatSelect,
     onReserveAllChange,
     onAnonymousChange,
@@ -30,6 +32,7 @@ export default function SeatSelection({
 
     function handleSeatSelect(seatNumber: number) {
         if (reserveAll) return;
+        if (occupiedSeatIds.includes(seatNumber)) return;
         // Toggle: deselect if already selected, otherwise select the new one
         onSeatSelect(selectedSeat === seatNumber ? null : seatNumber);
     }
@@ -52,7 +55,7 @@ export default function SeatSelection({
                             key={seat}
                             seatNumber={seat}
                             checked={reserveAll || selectedSeat === seat}
-                            disabled={reserveAll}
+                            disabled={reserveAll || occupiedSeatIds.includes(seat)}
                             onSelect={handleSeatSelect}
                         />
                     ))}
