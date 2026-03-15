@@ -4,7 +4,6 @@ import {
     CartesianGrid,
     XAxis,
     YAxis,
-    ResponsiveContainer,
 } from "recharts";
 
 import {
@@ -19,71 +18,19 @@ import {
     ChartContainer,
     ChartTooltip,
     ChartTooltipContent,
-    type ChartConfig,
 } from "@/components/ui/chart";
 
+import { memo } from "react";
 import { FaArrowRight } from "react-icons/fa";
 import { Link } from "react-router";
 
-import type { LabProp, LabType } from "~/types/labs.types";
+import type { RoomProp } from "~/types/labs.types";
+import { chartData, chartConfig } from "../../utils/chart";
 
-export const description = "A bar chart";
-
-const chartData = [
-    {
-        hour: "08:00",
-        q0: 12, // 00–15
-        q1: 18, // 15–30
-        q2: 10, // 30–45
-        q3: 15, // 45–60
-    },
-    {
-        hour: "10:00",
-        q0: 20,
-        q1: 14,
-        q2: 9,
-        q3: 11,
-    },
-    {
-        hour: "12:00",
-        q0: 12, // 00–15
-        q1: 18, // 15–30
-        q2: 10, // 30–45
-        q3: 15, // 45–60
-    },
-    {
-        hour: "14:00",
-        q0: 20,
-        q1: 14,
-        q2: 9,
-        q3: 11,
-    },
-    {
-        hour: "16:00",
-        q0: 12, // 00–15
-        q1: 18, // 15–30
-        q2: 10, // 30–45
-        q3: 15, // 45–60
-    },
-    {
-        hour: "18:00",
-        q0: 20,
-        q1: 14,
-        q2: 9,
-        q3: 11,
-    },
-];
-
-const chartConfig = {
-    q0: { label: "00–15", color: "var(--primary)" },
-    q1: { label: "15–30", color: "var(--primary)" },
-    q2: { label: "30–45", color: "var(--primary)" },
-    q3: { label: "45–60", color: "var(--primary)" },
-} satisfies ChartConfig;
-
-export default function LaboratoryCard({ lab }: LabProp) {
+function LaboratoryCard({ room, selectedDate }: RoomProp) {
+    const dateParam = selectedDate ? `&date=${selectedDate}` : "";
     return (
-        <Link to="confirm" className="grow">
+        <Link to={`confirm?roomId=${room.roomId}${dateParam}`} className="grow">
             <Card className="grow">
                 <CardHeader className="flex justify-between">
                     <div className="flex items-start gap-2">
@@ -91,8 +38,8 @@ export default function LaboratoryCard({ lab }: LabProp) {
                             <img src="/hero.jpg" alt="" className="rounded-xl size-16" />
                         </div>
                         <div className="flex flex-col pt-1 gap-1">
-                            <CardTitle>Room {lab.roomNumber}</CardTitle>
-                            <CardDescription>{lab.building} Hall</CardDescription>
+                            <CardTitle>{room.roomCode}</CardTitle>
+                            <CardDescription>{room.building}</CardDescription>
                         </div>
                     </div>
                     <FaArrowRight />
@@ -109,31 +56,35 @@ export default function LaboratoryCard({ lab }: LabProp) {
                                     fontSize={12}
                                 />
                                 <YAxis
-                                    domain={[0, 20]} // choose a constant max
+                                    domain={[0, room.capacity]}
                                 />
                                 <Bar
                                     dataKey="q0"
                                     radius={6}
                                     maxBarSize={8}
                                     fill="var(--color-q0)"
+                                    isAnimationActive={false}
                                 />
                                 <Bar
                                     dataKey="q1"
                                     radius={6}
                                     maxBarSize={8}
                                     fill="var(--color-q1)"
+                                    isAnimationActive={false}
                                 />
                                 <Bar
                                     dataKey="q2"
                                     radius={6}
                                     maxBarSize={8}
                                     fill="var(--color-q1)"
+                                    isAnimationActive={false}
                                 />
                                 <Bar
                                     dataKey="q3"
                                     radius={6}
                                     maxBarSize={8}
                                     fill="var(--color-q1)"
+                                    isAnimationActive={false}
                                 />
                             </BarChart>
                         </ChartContainer>
@@ -146,3 +97,5 @@ export default function LaboratoryCard({ lab }: LabProp) {
         </Link>
     );
 }
+
+export default memo(LaboratoryCard);

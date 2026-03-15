@@ -24,12 +24,18 @@ export default function ReserveLogs({
     error,
     canManage,
     isAdmin,
+    onCancel,
+    cancellingBatchId,
+    cancelError,
 }: {
     reservations: ReservationType[];
     isLoading: boolean;
     error: string;
     canManage: boolean;
     isAdmin: boolean;
+    onCancel: (batchId: string) => Promise<boolean>;
+    cancellingBatchId: string | null;
+    cancelError: string;
 }) {
     return (
         <Card className="grow w-full">
@@ -51,7 +57,7 @@ export default function ReserveLogs({
                     <Table className="grow w-full">
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[100px]">Reserve ID</TableHead>
+                                <TableHead className="w-[100px]">Batch</TableHead>
                                 <TableHead>Request Time</TableHead>
                                 <TableHead>Reservation Date</TableHead>
                                 <TableHead>Time Slot</TableHead>
@@ -76,12 +82,26 @@ export default function ReserveLogs({
                             </TableRow>
                         </TableHeader>
                         <TableBody>
+                            {cancelError && (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={isAdmin ? 14 : 11}
+                                        className="text-destructive text-center"
+                                    >
+                                        {cancelError}
+                                    </TableCell>
+                                </TableRow>
+                            )}
                             {reservations.map((reservation) => (
                                 <ReserveLogRow
-                                    key={reservation.reservationId}
+                                    key={reservation.batchId}
                                     reservation={reservation}
                                     canManage={canManage}
                                     isAdmin={isAdmin}
+                                    onCancel={onCancel}
+                                    isCancelling={
+                                        cancellingBatchId === reservation.batchId
+                                    }
                                 />
                             ))}
                         </TableBody>

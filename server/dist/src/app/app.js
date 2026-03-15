@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "../features/auth/auth.routes.js";
 import profileRoutes from "../features/profile/profile.routes.js";
 import reservationRoutes from "../features/reservation/reservation.routes.js";
+import roomRoutes from "../features/room/room.routes.js";
 const app = express();
 // Middleware
 app.use(cors({
@@ -19,4 +20,5 @@ app.use("/uploads", express.static(path.resolve("uploads")));
 app.use("/auth", authRoutes);
 app.use("/profile", profileRoutes);
 app.use("/reservations", reservationRoutes);
+app.use("/rooms", roomRoutes);
 export default app;

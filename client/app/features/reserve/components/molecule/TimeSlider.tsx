@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { formatTime } from "../../utils/reserve";
+import { formatMinutes } from "../../utils/reserve";
 
 export default function TimeSlider() {
     // State holds the start and end times in minutes
@@ -12,10 +12,10 @@ export default function TimeSlider() {
             <Label htmlFor="slider-time-filter">Time</Label>
             <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground text-sm">
-                    {formatTime(timeRange[0])}
+                    {formatMinutes(timeRange[0])}
                 </span>
                 <span className="text-muted-foreground text-sm">
-                    {formatTime(timeRange[1])}
+                    {formatMinutes(timeRange[1])}
                 </span>
             </div>
             <Slider

@@ -1,14 +1,13 @@
 export type ReservationStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
 
 export type ReservationType = {
-  reservationId: number;
+  batchId: string;
   requestTime: string;
   reservationDate: string;
-  startTime: string;
-  endTime: string;
+  timeSlot: string;           // pre-merged 12-hour range from backend
   building: string;
   roomCode: string;
-  seatId: number;
+  seatLabel: string;          // "ALL" or single seat number
   isAnonymous: boolean;
   status: ReservationStatus;
   cancelledAt: string | null;

@@ -36,15 +36,21 @@ CREATE TABLE IF NOT EXISTS timeslot (
 );
 
 CREATE TABLE IF NOT EXISTS reservation (
-    reservation_id SERIAL PRIMARY KEY,
-    user_id        INT NOT NULL REFERENCES "user"(user_id) ON DELETE CASCADE,
-    seat_id        INT NOT NULL,
-    room_id        INT NOT NULL,
-    timeslot_id    INT NOT NULL REFERENCES timeslot(timeslot_id) ON DELETE CASCADE,
-    request_date   DATE NOT NULL,
-    request_time   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_anonymous   BOOLEAN DEFAULT FALSE,
-    is_recurring   BOOLEAN DEFAULT FALSE,
-    cancelled_at   TIMESTAMP DEFAULT NULL,
+    reservation_id       SERIAL PRIMARY KEY,
+    reservation_batch_id UUID DEFAULT NULL,
+    user_id              INT NOT NULL REFERENCES "user"(user_id) ON DELETE CASCADE,
+    seat_id              INT NOT NULL,
+    room_id              INT NOT NULL,
+    timeslot_id          INT NOT NULL REFERENCES timeslot(timeslot_id) ON DELETE CASCADE,
+    request_date         DATE NOT NULL,
+    request_time         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_anonymous         BOOLEAN DEFAULT FALSE,
+    is_recurring         BOOLEAN DEFAULT FALSE,
+    cancelled_at         TIMESTAMP DEFAULT NULL,
     FOREIGN KEY (room_id, seat_id) REFERENCES seat(room_id, seat_id) ON DELETE CASCADE
 );
+
+-- Prevent double-booking: only one active reservation per (room, seat, timeslot, date)
+CREATE UNIQUE INDEX IF NOT EXISTS reservation_active_unique_idx
+    ON reservation (room_id, seat_id, timeslot_id, request_date)
+    WHERE cancelled_at IS NULL;

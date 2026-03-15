@@ -1,19 +1,12 @@
-export type LabStatus = "OPEN" | "CLOSED" | "MAINTENANCE" | "FULL";
-
-export interface LabType {
-    id: string;
+export interface RoomType {
+    roomId: number;
+    roomCode: string;
     building: string;
-    roomNumber: string;
-    status: LabStatus;
-    totalSeats: number;
-    occupiedSeats: number;
+    floor: number;
+    capacity: number;
 }
 
-export interface LabProp {
-    lab: LabType;
-}
-
-export interface LabSeatType {
-    id: string; // e.g., "G302-01"
-    labId: string;
+export interface RoomProp {
+    room: RoomType;
+    selectedDate?: string;
 }

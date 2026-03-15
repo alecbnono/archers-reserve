@@ -15,7 +15,14 @@ import { useReservationLogs } from "~/features/reserve/hooks/useReservationLogs"
 
 export default function Profile() {
     const currentUser = useAuthStore((state) => state.currentUser);
-    const { reservations, isLoading, error } = useReservationLogs(false);
+    const {
+        reservations,
+        isLoading,
+        error,
+        cancelBatch,
+        cancellingBatchId,
+        cancelError,
+    } = useReservationLogs(false);
 
     return (
         <div className="flex flex-col gap-4 w-full px-4 md:px-20 py-5">
@@ -28,6 +35,9 @@ export default function Profile() {
                         error={error}
                         isAdmin={false}
                         canManage={true}
+                        onCancel={cancelBatch}
+                        cancellingBatchId={cancellingBatchId}
+                        cancelError={cancelError}
                     />
                 </div>
             ) : (
