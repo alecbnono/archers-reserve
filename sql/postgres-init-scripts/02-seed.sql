@@ -103,13 +103,14 @@ INSERT INTO reservation (
   user_id, seat_id, room_id, timeslot_id, request_date, is_anonymous, is_recurring
 )
 SELECT
-  10002,           -- existing seeded user
+  10002,
   s.seat_id,
   s.room_id,
-  1,               -- timeslot_id (07:00-07:30 from seed)
+  t.timeslot_id,
   DATE '2026-03-20',
   FALSE,
   FALSE
 FROM seat s
 JOIN room r ON r.room_id = s.room_id
+CROSS JOIN timeslot t
 WHERE r.room_code = 'L212';

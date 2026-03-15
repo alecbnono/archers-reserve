@@ -14,6 +14,13 @@ export interface RoomRow {
   capacity: number;
 }
 
+export interface OccupancyPoint {
+  timeslotId: number;
+  startTime: string;    // "07:00:00"
+  endTime: string;      // "07:30:00"
+  reservedCount: number;
+}
+
 /**
  * Get all buildings from given rooms
  */
@@ -91,6 +98,35 @@ export async function getRooms(filter: RoomFilter = {}): Promise<RoomRow[]> {
 
   const result = await pool.query(query, values);
   return result.rows.map(toRoomRow);
+}
+
+
+export async function getRoomOccupancy(
+  roomId: number,
+  date: string
+): Promise<OccupancyPoint[]> {
+  const query = `
+    SELECT 
+      t.timeslot_id,
+      t.start_time,
+      t.end_time,
+      COUNT(r.reservation_id)::int AS reserved_count
+    FROM timeslot t
+    LEFT JOIN reservation r
+      ON r.timeslot_id = t.timeslot_id
+      AND r.room_id = $1
+      AND r.request_date = $2
+      AND r.cancelled_at IS NULL
+    GROUP BY t.timeslot_id, t.start_time, t.end_time
+    ORDER BY t.start_time
+  `;
+  const result = await pool.query(query, [roomId, date]);
+  return result.rows.map(row => ({
+    timeslotId: row.timeslot_id,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    reservedCount: row.reserved_count,
+  }));
 }
 
 /**

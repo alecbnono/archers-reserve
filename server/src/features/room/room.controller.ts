@@ -36,3 +36,11 @@ export async function listBuildings(_req: Request, res: Response): Promise<void>
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+export async function getRoomOccupancy(req: Request, res: Response): Promise<void> {
+  const roomId = Number(req.params.roomId);
+  const date = typeof req.query.date === "string" ? req.query.date : "";
+  if (!roomId || !date) { res.status(400).json({ error: "roomId and date required" }); return; }
+  const data = await roomService.getRoomOccupancy(roomId, date);
+  res.json(data);
+}
