@@ -32,7 +32,20 @@ import {
 import TimeSlider from "../molecule/TimeSlider";
 import BuildingFilter from "../molecule/BuildingFilter";
 
-export default function FilterLaboratory() {
+/*
+    Renders Filter Laboratory List
+*/
+type FilterLaboratoryProps = {
+  buildings: string[];
+  selectedBuildings: string[];
+  onToggleBuilding: (building: string) => void;
+};
+
+export default function FilterLaboratory({
+  buildings,
+  selectedBuildings,
+  onToggleBuilding
+}: FilterLaboratoryProps) {
     return (
         <>
             <Sheet>
@@ -62,7 +75,11 @@ export default function FilterLaboratory() {
 
                             <TimeSlider />
 
-                            <BuildingFilter />
+                            <BuildingFilter
+                            buildings={buildings}
+                            selectedBuildings={selectedBuildings}
+                            onToggleBuilding={onToggleBuilding}
+                            />
                         </FieldGroup>
                     </div>
                     <SheetFooter>
@@ -93,7 +110,11 @@ export default function FilterLaboratory() {
 
                         <TimeSlider />
 
-                        <BuildingFilter />
+                        <BuildingFilter
+                        buildings={buildings}
+                        selectedBuildings={selectedBuildings}
+                        onToggleBuilding={onToggleBuilding}
+                        />
                     </FieldGroup>
                 </CardContent>
             </Card>

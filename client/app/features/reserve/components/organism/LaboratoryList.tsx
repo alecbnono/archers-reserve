@@ -1,9 +1,9 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
+import type { RoomType } from "@/types/labs.types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LaboratoryCard from "../molecule/LaboratoryCard";
 import FilterLaboratory from "./FilterLaboratory";
 import WeekSelection from "../molecule/WeekSelection";
-import { useRooms } from "~/features/reserve/hooks/useRooms";
 import {
     getWeeksForYear,
     getCurrentWeekNumber,
@@ -12,7 +12,46 @@ import {
 } from "~/features/reserve/utils/date";
 
 export default function LaboratoryList() {
-    const { rooms, isLoading, error } = useRooms();
+    const [rooms, setRooms] = useState<RoomType[]>([]);
+    const [buildings, setBuildings] = useState<string[]>([]);
+    const [selectedBuildings, setSelectedBuildings] = useState<string[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    
+    useEffect(() => {
+        fetch("http://localhost:3000/rooms/buildings", { credentials: "include" })
+            .then((res) => res.json())
+            .then((data) => setBuildings(data.buildings || []))
+            .catch((err) => setError("Could not load buildings"))
+    }, []);
+
+    useEffect(() => {
+    const qs = selectedBuildings
+        .map((b) => `building=${encodeURIComponent(b)}`)
+        .join("&");
+    const url = `/rooms${qs ? `?${qs}` : ""}`;
+
+    setIsLoading(true);
+    setError(null);
+
+    fetch(url, { credentials: "include" })
+        .then((res) => res.json())
+        .then((data) => {
+        setRooms(data.rooms || []);
+        setIsLoading(false);
+        })
+        .catch(() => {
+        setError("Could not load rooms");
+        setIsLoading(false);
+        });
+    }, [selectedBuildings]);    
+
+
+    const toggleBuilding = (b: string) =>
+    setSelectedBuildings((prev) =>
+        prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b],
+    );
+
 
     const today = useMemo(() => new Date(), []);
     const year = today.getFullYear();
@@ -135,7 +174,11 @@ export default function LaboratoryList() {
                         />
                     </div>
                     <div className="flex md:flex-row-reverse justify-end flex-col gap-2">
-                        <FilterLaboratory />
+                        <FilterLaboratory
+                        buildings={buildings}
+                        selectedBuildings={selectedBuildings}
+                        onToggleBuilding={toggleBuilding}
+                        />
 
                         <TabsContent
                             key={animationKey}

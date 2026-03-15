@@ -8,32 +8,40 @@ import {
     FieldTitle,
 } from "@/components/ui/field";
 
-export default function BuildingFilter() {
+type BuildingFilterProps = {
+  buildings: string[];
+  selectedBuildings: string[];
+  onToggleBuilding: (building: string) => void;
+};
+
+export default function BuildingFilter({
+  buildings,
+  selectedBuildings,
+  onToggleBuilding,
+}: BuildingFilterProps) {
     return (
-        <div className="flex flex-col gap-2">
-            <h2>Filter by Building</h2>
-            <Field orientation="horizontal">
-                <Checkbox id="terms-checkbox-basic" name="terms-checkbox-basic" />
-                <FieldLabel htmlFor="terms-checkbox-basic">
-                    St. La Salle Hall
-                </FieldLabel>
+    <div className="flex flex-col gap-2">
+        <h2>Filter by Building</h2>
+
+        {buildings.map((building) => {
+        const id = `building-${building.replace(/\s+/g, "-").toLowerCase()}`;
+        const checked = selectedBuildings.includes(building);
+
+        return (
+            <Field key={building} orientation="horizontal">
+            <Checkbox
+                id={id}
+                checked={checked}
+                onCheckedChange={() => onToggleBuilding(building)}
+            />
+            <FieldLabel htmlFor={id}>{building}</FieldLabel>
             </Field>
-            <Field orientation="horizontal">
-                <Checkbox id="terms-checkbox-basic" name="terms-checkbox-basic" />
-                <FieldLabel htmlFor="terms-checkbox-basic">
-                    John Gokongwei Sr. Hall
-                </FieldLabel>
-            </Field>
-            <Field orientation="horizontal">
-                <Checkbox id="terms-checkbox-basic" name="terms-checkbox-basic" />
-                <FieldLabel htmlFor="terms-checkbox-basic">St. Joseph Hall</FieldLabel>
-            </Field>
-            <Field orientation="horizontal">
-                <Checkbox id="terms-checkbox-basic" name="terms-checkbox-basic" />
-                <FieldLabel htmlFor="terms-checkbox-basic">
-                    Urbano J. Velasco Hall
-                </FieldLabel>
-            </Field>
-        </div>
+        );
+        })}
+
+        {buildings.length === 0 && (
+        <div className="text-sm text-slate-500">No buildings available</div>
+        )}
+    </div>
     );
 }
