@@ -97,3 +97,19 @@ INSERT INTO reservation (user_id, seat_id, room_id, timeslot_id, request_date, i
     (10006, 1, 2, 2, '2026-03-02', FALSE, TRUE),
     (10003, 1, 3, 3, '2026-03-02', TRUE, FALSE),
     (10004, 2, 3, 4, '2026-03-02', FALSE, FALSE);
+
+-- Made to test if filters room with max capacity
+INSERT INTO reservation (
+  user_id, seat_id, room_id, timeslot_id, request_date, is_anonymous, is_recurring
+)
+SELECT
+  10002,           -- existing seeded user
+  s.seat_id,
+  s.room_id,
+  1,               -- timeslot_id (07:00-07:30 from seed)
+  DATE '2026-03-20',
+  FALSE,
+  FALSE
+FROM seat s
+JOIN room r ON r.room_id = s.room_id
+WHERE r.room_code = 'L212';

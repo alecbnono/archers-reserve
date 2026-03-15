@@ -1,56 +1,41 @@
 import { FaSliders } from "react-icons/fa6";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-    Field,
-    FieldContent,
-    FieldDescription,
-    FieldGroup,
-    FieldLabel,
-    FieldTitle,
-} from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
     Sheet,
     SheetClose,
     SheetContent,
-    SheetDescription,
     SheetFooter,
     SheetHeader,
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-    Card,
-    CardAction,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import TimeSlider from "../molecule/TimeSlider";
 import BuildingFilter from "../molecule/BuildingFilter";
 
-/*
-    Renders Filter Laboratory List
-*/
 type FilterLaboratoryProps = {
-  buildings: string[];
-  selectedBuildings: string[];
-  onToggleBuilding: (building: string) => void;
+    buildings: string[];
+    selectedBuildings: string[];
+    onToggleBuilding: (building: string) => void;
+    vacantOnly: boolean;
+    onToggleVacant: (checked: boolean) => void;
 };
 
 export default function FilterLaboratory({
-  buildings,
-  selectedBuildings,
-  onToggleBuilding
+    buildings,
+    selectedBuildings,
+    onToggleBuilding,
+    vacantOnly,
+    onToggleVacant,
 }: FilterLaboratoryProps) {
     return (
         <>
             <Sheet>
                 <SheetTrigger asChild className="md:hidden w-fit">
-                    <Button variant="outline" className="">
+                    <Button variant="outline">
                         <FaSliders size={32} />
                     </Button>
                 </SheetTrigger>
@@ -64,10 +49,11 @@ export default function FilterLaboratory({
                                 <h2>General</h2>
                                 <Field orientation="horizontal">
                                     <Checkbox
-                                        id="terms-checkbox-basic"
-                                        name="terms-checkbox-basic"
+                                        id="filter-vacant-mobile"
+                                        checked={vacantOnly}
+                                        onCheckedChange={(checked) => onToggleVacant(checked === true)}
                                     />
-                                    <FieldLabel htmlFor="terms-checkbox-basic">
+                                    <FieldLabel htmlFor="filter-vacant-mobile">
                                         Filter Vacant
                                     </FieldLabel>
                                 </Field>
@@ -76,9 +62,9 @@ export default function FilterLaboratory({
                             <TimeSlider />
 
                             <BuildingFilter
-                            buildings={buildings}
-                            selectedBuildings={selectedBuildings}
-                            onToggleBuilding={onToggleBuilding}
+                                buildings={buildings}
+                                selectedBuildings={selectedBuildings}
+                                onToggleBuilding={onToggleBuilding}
                             />
                         </FieldGroup>
                     </div>
@@ -89,6 +75,7 @@ export default function FilterLaboratory({
                     </SheetFooter>
                 </SheetContent>
             </Sheet>
+
             <Card className="hidden md:block h-full">
                 <CardHeader>
                     <CardTitle>Filters</CardTitle>
@@ -99,10 +86,11 @@ export default function FilterLaboratory({
                             <h2>General</h2>
                             <Field orientation="horizontal">
                                 <Checkbox
-                                    id="terms-checkbox-basic"
-                                    name="terms-checkbox-basic"
+                                    id="filter-vacant-desktop"
+                                    checked={vacantOnly}
+                                    onCheckedChange={(checked) => onToggleVacant(checked === true)}
                                 />
-                                <FieldLabel htmlFor="terms-checkbox-basic">
+                                <FieldLabel htmlFor="filter-vacant-desktop">
                                     Filter Vacant
                                 </FieldLabel>
                             </Field>
@@ -111,9 +99,9 @@ export default function FilterLaboratory({
                         <TimeSlider />
 
                         <BuildingFilter
-                        buildings={buildings}
-                        selectedBuildings={selectedBuildings}
-                        onToggleBuilding={onToggleBuilding}
+                            buildings={buildings}
+                            selectedBuildings={selectedBuildings}
+                            onToggleBuilding={onToggleBuilding}
                         />
                     </FieldGroup>
                 </CardContent>

@@ -13,7 +13,10 @@ export async function listRooms(req: Request, res: Response): Promise<void> {
   }
     
   try {
-    const rooms = await roomService.getRooms(buildings.length ? buildings : undefined);
+    const vacant = req.query.vacant === "true";
+    const timeslotId = req.query.timeslot_id ? Number(req.query.timeslot_id) : undefined;
+
+    const rooms = await roomService.getRooms({ buildings, vacant, timeslotId });
     res.status(200).json({ rooms });
   } catch (error: any) {
     if (error instanceof AppError) {
