@@ -11,14 +11,7 @@ export function meta({ }: Route.MetaArgs) {
 }
 
 export default function adminLogs() {
-    const {
-        reservations,
-        isLoading,
-        error,
-        cancelBatch,
-        cancellingBatchId,
-        cancelError,
-    } = useReservationLogs(true);
+    const { reservations, isLoading, error } = useReservationLogs(true);
 
     return (
         <div className="flex w-full">
@@ -32,9 +25,6 @@ export default function adminLogs() {
                         error={error}
                         isAdmin={true}
                         canManage={true}
-                        onCancel={cancelBatch}
-                        cancellingBatchId={cancellingBatchId}
-                        cancelError={cancelError}
                     />
                 </div>
             </div>
