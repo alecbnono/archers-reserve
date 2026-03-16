@@ -435,6 +435,7 @@ export interface CreateReservationInput {
   seatId?: number | null;
   reserveAll: boolean;
   isAnonymous: boolean;
+  targetUserId?: number; // Admin on-behalf: the user who will own the reservation
 }
 
 export interface CreateReservationResult {
@@ -458,8 +459,23 @@ export async function createReservation(
 ): Promise<CreateReservationResult> {
   const {
     userId, userRole, roomId, date,
-    timeslotIds, seatId, reserveAll, isAnonymous,
+    timeslotIds, seatId, reserveAll, isAnonymous, targetUserId,
   } = input;
+
+  // --- Admin on-behalf: validate target user exists and is not ADMIN ---
+  if (targetUserId != null) {
+    const targetResult = await pool.query(
+      `SELECT user_id, role FROM "user" WHERE user_id = $1`,
+      [targetUserId],
+    );
+    if (targetResult.rows.length === 0) {
+      throw new AppError("Target user not found", 404);
+    }
+    const targetRole = targetResult.rows[0].role;
+    if (targetRole === "ADMIN") {
+      throw new AppError("Cannot reserve on behalf of an admin user", 403);
+    }
+  }
 
   // --- Validate room exists and get capacity ---
   const roomResult = await pool.query(

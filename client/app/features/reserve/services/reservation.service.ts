@@ -8,6 +8,7 @@ export interface CreateReservationPayload {
   seatId?: number | null;
   reserveAll: boolean;
   isAnonymous: boolean;
+  targetUserId?: number; // Admin on-behalf: the user who will own the reservation
 }
 
 export interface CreateReservationResponse {

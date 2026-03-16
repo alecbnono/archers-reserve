@@ -4,14 +4,18 @@ import * as reservationService from "./reservation.service.js";
 
 /**
  * POST /reservations — create reservation(s).
- * Body: { roomId, date, timeslotIds, seatId?, reserveAll, isAnonymous }
+ * Body: { roomId, date, timeslotIds, seatId?, reserveAll, isAnonymous, targetUserId? }
+ *
+ * Admin on-behalf reserving:
+ *   - Admin MUST provide targetUserId (STUDENT or FACULTY).
+ *   - Non-admin requests with targetUserId are rejected.
  */
 export async function createReservation(
   req: AuthRequest,
   res: Response,
 ): Promise<void> {
   try {
-    const { roomId, date, timeslotIds, seatId, reserveAll, isAnonymous } =
+    const { roomId, date, timeslotIds, seatId, reserveAll, isAnonymous, targetUserId } =
       req.body;
 
     // --- Basic validation ---
@@ -51,15 +55,29 @@ export async function createReservation(
       return;
     }
 
+    // --- Admin on-behalf validation ---
+    const actorRole = req.user!.role;
+
+    if (actorRole === "ADMIN" && (targetUserId == null || typeof targetUserId !== "number" || targetUserId <= 0)) {
+      res.status(400).json({ error: "Admin must select a target user to reserve for" });
+      return;
+    }
+
+    if (actorRole !== "ADMIN" && targetUserId != null) {
+      res.status(403).json({ error: "Only admins can reserve on behalf of another user" });
+      return;
+    }
+
     const result = await reservationService.createReservation({
-      userId: req.user!.id,
-      userRole: req.user!.role,
+      userId: actorRole === "ADMIN" ? targetUserId : req.user!.id,
+      userRole: actorRole,
       roomId,
       date,
       timeslotIds: uniqueTimeslots,
       seatId: reserveAll ? null : seatId,
       reserveAll,
       isAnonymous: isAnonymous === true,
+      targetUserId: actorRole === "ADMIN" ? targetUserId : undefined,
     });
 
     res.status(201).json({

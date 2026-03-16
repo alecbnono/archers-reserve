@@ -11,6 +11,49 @@ export async function getReservations(): Promise<ReservationRow[]>{
   return reservationsByBatch;
 }
 
+// ─── Admin user search ────────────────────────────────────────────────
+
+export interface SearchableUser {
+  id: number;
+  username: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: "STUDENT" | "FACULTY";
+}
+
+/**
+ * Search for STUDENT/FACULTY users by partial username, name, or email.
+ * Returns at most 10 results, ordered by username.
+ */
+export async function searchUsers(query: string): Promise<SearchableUser[]> {
+  const pattern = `%${query}%`;
+
+  const result = await pool.query(
+    `SELECT user_id, username, first_name, last_name, email, role
+     FROM "user"
+     WHERE role IN ('STUDENT', 'FACULTY')
+       AND (
+         username   ILIKE $1
+         OR first_name ILIKE $1
+         OR last_name  ILIKE $1
+         OR email      ILIKE $1
+       )
+     ORDER BY username
+     LIMIT 10`,
+    [pattern],
+  );
+
+  return result.rows.map((r: any) => ({
+    id: r.user_id,
+    username: r.username,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    email: r.email,
+    role: r.role,
+  }));
+}
+
 
 /**
  *  UNMERGE: "9:00 AM - 11:00 AM, 2:00 PM - 4:00 PM"  

@@ -7,4 +7,7 @@ const router = Router();
 // Dashboard logs endpoint
 router.get("/dashboard", requireAuth, adminController.getDashboard);
 
+// Admin user search (STUDENT/FACULTY only)
+router.get("/users/search", requireAuth, adminController.searchUsers);
+
 export default router;
