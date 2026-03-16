@@ -1,7 +1,7 @@
 import type { AdminLogFilters } from "../types/filter.types";
 
 /**
- * Get a human-readable summary of active admin filters.
+ * Get a summary of active admin filters.
  */
 export function getFilterSummary(filters: AdminLogFilters): string {
   const parts: string[] = [];
