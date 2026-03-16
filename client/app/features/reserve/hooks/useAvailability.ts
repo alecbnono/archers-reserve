@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { AvailabilityData } from "~/features/reserve/types/reserve.types";
 import { fetchAvailability } from "~/features/reserve/services/availability.service";
 
-export function useAvailability(roomId: number | null, date: string | null) {
+export function useAvailability(roomId: number | null, date: string | null, excludeBatchId?: string | null) {
   const [data, setData] = useState<AvailabilityData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -20,7 +20,7 @@ export function useAvailability(roomId: number | null, date: string | null) {
       setIsLoading(true);
       setError("");
 
-      const result = await fetchAvailability(roomId!, date!);
+      const result = await fetchAvailability(roomId!, date!, excludeBatchId ?? undefined);
 
       if (cancelled) return;
 
@@ -39,7 +39,7 @@ export function useAvailability(roomId: number | null, date: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [roomId, date]);
+  }, [roomId, date, excludeBatchId]);
 
   return { data, isLoading, error };
 }

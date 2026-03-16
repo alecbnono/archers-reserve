@@ -10,17 +10,20 @@ export interface AvailabilityResult {
 
 /**
  * Fetch availability for a specific room on a specific date.
- * GET /reservations/availability?roomId=...&date=YYYY-MM-DD
+ * GET /reservations/availability?roomId=...&date=YYYY-MM-DD[&excludeBatchId=...]
  */
 export async function fetchAvailability(
   roomId: number,
   date: string,
+  excludeBatchId?: string,
 ): Promise<AvailabilityResult> {
   try {
-    const res = await fetch(
-      `${BASE_URL}/availability?roomId=${roomId}&date=${date}`,
-      { credentials: "include" },
-    );
+    let url = `${BASE_URL}/availability?roomId=${roomId}&date=${date}`;
+    if (excludeBatchId) {
+      url += `&excludeBatchId=${encodeURIComponent(excludeBatchId)}`;
+    }
+
+    const res = await fetch(url, { credentials: "include" });
 
     const json = await res.json();
 
