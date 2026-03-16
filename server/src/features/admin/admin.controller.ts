@@ -55,3 +55,30 @@ export async function getDashboard(req: AuthRequest, res: Response): Promise<voi
   }
 }
 
+/**
+ * GET /admin/users/search?q=...
+ * Admin-only endpoint to search STUDENT/FACULTY users by username/name/email.
+ */
+export async function searchUsers(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "ADMIN") {
+      res.status(403).json({ error: "Admin access required" });
+      return;
+    }
+
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+
+    if (q.length === 0) {
+      res.status(200).json({ users: [] });
+      return;
+    }
+
+    const users = await adminService.searchUsers(q);
+    res.status(200).json({ users });
+  } catch (error: any) {
+    res
+      .status(error.status || 500)
+      .json({ error: error.message || "Internal server error" });
+  }
+}
+

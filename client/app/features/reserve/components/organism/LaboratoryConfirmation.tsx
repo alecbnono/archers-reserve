@@ -3,14 +3,14 @@ import { useSearchParams, useNavigate } from "react-router";
 import Timeslot from "../atom/Timeslot";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 
 import SeatSelection from "../molecule/SeatSelection";
 import ConfirmationDisplay from "../molecule/ConfirmationDisplay";
+import AdminUserSearch from "../molecule/AdminUserSearch";
 
 import { useAuthStore } from "~/store/user.store";
 import { useAvailability } from "~/features/reserve/hooks/useAvailability";
+import { useAdminUserSearch } from "~/features/reserve/hooks/useAdminUserSearch";
 import { createReservation } from "~/features/reserve/services/reservation.service";
 import {
     fetchReservationBatchDetail,
@@ -49,6 +49,10 @@ export default function LaboratoryConfirmation() {
     const [isAnonymous, setIsAnonymous] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState("");
+
+    // --- Admin user search (only used when admin is creating, not editing) ---
+    const isAdmin = currentUser?.role === "ADMIN";
+    const adminSearch = useAdminUserSearch();
 
     // --- Edit mode: fetch batch detail and prefill ---
     const [editLoading, setEditLoading] = useState(false);
@@ -190,6 +194,9 @@ export default function LaboratoryConfirmation() {
             seatId: reserveAll ? null : selectedSeat,
             reserveAll,
             isAnonymous,
+            ...(isAdmin && !isEditMode && adminSearch.selectedUser
+                ? { targetUserId: adminSearch.selectedUser.id }
+                : {}),
         };
 
         const result = isEditMode && batchId
@@ -204,21 +211,22 @@ export default function LaboratoryConfirmation() {
         }
 
         // Success — navigate based on role/context
-        const redirectTo = currentUser?.role === "ADMIN" && isEditMode
+        const redirectTo = isAdmin
             ? "/dashboard/logs"
             : "/dashboard/profile";
         navigate(redirectTo);
     }, [
         roomId, date, selectedTimeslots, selectedSeat,
         reserveAll, isAnonymous, isSubmitting, navigate,
-        isEditMode, batchId,
+        isEditMode, batchId, isAdmin, adminSearch.selectedUser,
     ]);
 
     // --- Validation ---
     const hasTimeslots = selectedTimeslots.length > 0;
     const hasSeat = selectedSeat !== null || reserveAll;
     const hasContext = roomId !== null && date !== null && availability !== null;
-    const isValid = hasContext && hasTimeslots && hasSeat;
+    const hasAdminTarget = !isAdmin || isEditMode || adminSearch.selectedUser !== null;
+    const isValid = hasContext && hasTimeslots && hasSeat && hasAdminTarget;
 
     // --- Page title ---
     const pageTitle = isEditMode ? "Edit your booking" : "Confirm your booking";
@@ -296,13 +304,18 @@ export default function LaboratoryConfirmation() {
                     ))}
                 </ToggleGroup>
                 <div className="flex flex-col gap-4">
-                    {currentUser?.role === "ADMIN" ? (
-                        <Field orientation="horizontal">
-                            <Input type="search" placeholder="Search user..." />
-                            <Button>Search</Button>
-                        </Field>
-                    ) : (
-                        <></>
+                    {isAdmin && !isEditMode && (
+                        <AdminUserSearch
+                            query={adminSearch.query}
+                            results={adminSearch.results}
+                            isSearching={adminSearch.isSearching}
+                            searchError={adminSearch.searchError}
+                            selectedUser={adminSearch.selectedUser}
+                            showResults={adminSearch.showResults}
+                            onQueryChange={adminSearch.handleQueryChange}
+                            onSelectUser={adminSearch.handleSelectUser}
+                            onClearUser={adminSearch.handleClearUser}
+                        />
                     )}
                     <SeatSelection
                         totalSeats={availability?.room.capacity ?? 0}
