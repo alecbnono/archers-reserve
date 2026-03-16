@@ -23,8 +23,8 @@ export default function adminLogs() {
                         reservations={reservations}
                         isLoading={isLoading}
                         error={error}
-                        isAdmin={true}
                         canManage={true}
+                        isAdmin={true}
                     />
                 </div>
             </div>

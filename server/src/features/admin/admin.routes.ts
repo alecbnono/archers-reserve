@@ -4,7 +4,7 @@ import * as adminController from "./admin.controller.js";
 
 const router = Router();
 
-// GET /admin/dashboard — admin-only dashboard data
-router.get("/dashboard", requireAuth, adminController.getDashboard);
+// GET /admin/adminLogs — admin-only admin logs data
+router.get("/me/adminLogs", requireAuth, adminController.getDashboard);
 
 export default router;
