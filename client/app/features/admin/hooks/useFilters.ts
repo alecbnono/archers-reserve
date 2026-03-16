@@ -2,13 +2,7 @@ import { useFilterBuilding } from "./useFilterBuilding";
 import { useFilterTime } from "./useFilterTime";
 import { useAdminLogFilters } from "./useFilterVacant";
 
-interface FilterState {
-  building: ReturnType<typeof useFilterBuilding>;
-  time: ReturnType<typeof useFilterTime>;
-  vacant: ReturnType<typeof useAdminLogFilters>;
-}
-
-export function useFilters() {
+export function useFilters(){
   const building = useFilterBuilding();
   const time = useFilterTime();
   const vacant = useAdminLogFilters();
