@@ -3,6 +3,9 @@ import pool from "../../app/db.js";
 import { AppError } from "../../utils/AppError.js";
 import type { UserRole } from "../../types/auth.types.js";
 
+// ─── Constants ─────────────────────────────────────────────────────────────
+const STUDENT_MAX_ACTIVE_SLOTS = 20;
+
 // ─── Types ─────────────────────────────────────────────────────────────
 
 export type ReservationStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
@@ -525,6 +528,30 @@ export async function createReservation(
   try {
     await client.query("BEGIN");
 
+    // Student quota check: max 20 active upcoming slots
+    if (userRole === "STUDENT") {
+      const activeCountResult = await client.query(
+        `SELECT COUNT(*)::int AS active_count
+         FROM reservation r
+         JOIN timeslot t ON t.timeslot_id = r.timeslot_id
+         WHERE r.user_id = $1
+           AND r.cancelled_at IS NULL
+           AND (r.request_date + t.start_time)::timestamp > NOW()`,
+        [userId],
+      );
+
+      const activeCount: number = activeCountResult.rows[0].active_count;
+      const requestedCount = timeslotIds.length; // student reserveAll is already blocked
+
+      if (activeCount + requestedCount > STUDENT_MAX_ACTIVE_SLOTS) {
+        await client.query("ROLLBACK");
+        throw new AppError(
+          `Students may only hold up to ${STUDENT_MAX_ACTIVE_SLOTS} active reservations (10 hours).`,
+          409,
+        );
+      }
+    }
+    
     // 1. Find all active conflicting reservations
     const conflictResult = await client.query(
       `SELECT r.reservation_id, r.seat_id, r.timeslot_id, u.role AS owner_role
