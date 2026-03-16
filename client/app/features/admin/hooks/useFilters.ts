@@ -9,7 +9,7 @@ export function useFilters() {
 
   const building = {
     buildings: buildingHook.buildings,
-    selectedBuilding: buildingHook.selectedBuilding,
+    selectedBuildings: buildingHook.selectedBuildings,
     toggleBuilding: buildingHook.toggleBuilding,
   };
 
@@ -23,9 +23,5 @@ export function useFilters() {
     toggleShowVacant: vacantHook.toggleShowVacant,
   };
 
-  return {
-    building,
-    time,
-    vacant,
-  };
+  return { building, time, vacant };
 }

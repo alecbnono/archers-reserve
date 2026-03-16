@@ -1,38 +1,52 @@
 import pool from "../../app/db.js";
+import { getAllReservations, ReservationRow } from "../reservation/reservation.service.js";
 
-interface ReservationLogRow {
-  reservationId: number;
-  reservation_batch_id: string;
-  user_id: number;
-  seat_id: number;
-  room_id: number;
-  timeslot_id: number;
-  request_date: string;
-  request_time: string;
-  is_anonymous: boolean;
-  is_reocurring: boolean;
-  cancelled_at: string | null;
+export async function getReservations(): Promise<ReservationRow[]>{
+
+  /**
+   * Returns the list of reservations by batch for admin dashboard.
+   */
+  const reservationsByBatch = await getAllReservations();
+
+  return reservationsByBatch;
 }
 
-export async function getAllReservations(): Promise<ReservationLogRow[]>{
-  const query = `
-    SELECT * 
-    FROM reservation
-  `;
 
-  const result = await pool.query(query);
+/**
+ *  UNMERGE: "9:00 AM - 11:00 AM, 2:00 PM - 4:00 PM"  
+ * [{start: "9:00", end: "11:00"}, {start: "14:00", end: "16:00"}]
+ * 
+ */ 
+export function unmergeTimeslotRanges(timeSlotString: string): { startTime: string; endTime: string }[] {
+  if (!timeSlotString || timeSlotString === "") return [];
 
-  return result.rows.map((row: any) => ({
-    reservationId: row.reservation_id,
-    reservation_batch_id: row.reservation_batch_id,
-    user_id: row.user_id,
-    seat_id: row.seat_id,
-    room_id: row.room_id,
-    timeslot_id: row.timeslot_id,
-    request_date: row.request_date,
-    request_time: row.request_time,
-    is_anonymous: row.is_anonymous,
-    is_reocurring: row.is_reocurring,
-    cancelled_at: row.cancelled_at,
-  }));
+  // Split merged ranges: "9:00 AM - 11:00 AM, 2:00 PM - 4:00 PM"
+  const rangeStrings = timeSlotString.split(",").map(s => s.trim());
+
+  const slots: { startTime: string; endTime: string }[] = [];
+
+  for (const range of rangeStrings) {
+    // Extract "9:00 AM - 11:00 AM" → ["9:00 AM", "11:00 AM"]
+    const match = range.match(/(.+?)\s*-\s*(.+)/);
+    if (match) {
+      const [, start, end] = match;
+      slots.push({
+        startTime: start.trim(),
+        endTime: end.trim(),
+      });
+    }
+  }
+
+  return slots;
 }
+
+
+export function toMinutes(timeStr: string): number {
+  const [time, period] = timeStr.replace(/[:\s]/g, '').split(/(AM|PM)/);
+  let [hours, minutes] = time.split('').map(Number);
+  if (period === 'PM' && hours !== 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+

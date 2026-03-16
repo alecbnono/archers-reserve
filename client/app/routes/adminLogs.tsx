@@ -2,23 +2,27 @@ import { useFilters } from "~/features/admin/hooks/useFilters";
 import { useAdminLogs } from "~/features/admin/hooks/useAdminLogs";
 import FilterLaboratory from "~/features/reserve/components/organism/FilterLaboratory";
 import ReserveLogs from "~/components/organisms/ReserveLogs";
-import { convertToReservationTypes } from "~/features/admin/utils/admin.utils";
+
+
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 export default function adminLogs() {
-  const filtersHook = useFilters();
   const { 
-    building: { buildings, selectedBuilding, toggleBuilding },
+    building: { buildings, selectedBuildings, toggleBuilding },
     vacant: { showVacant, toggleShowVacant },
     time: { timeRange, updateTimeRange }
-  } = filtersHook;
+  } = useFilters();
 
   const { reservations, isLoading, error } = useAdminLogs({
-    buildings: selectedBuilding ? [selectedBuilding] : [],
+    buildings: selectedBuildings ? [...selectedBuildings] : [],
     timeRange,
     showVacant,
   });
 
-  const formattedReservations = convertToReservationTypes(reservations);
+  //TODO: reservations not showing in ReserveLogs
+  console.log(reservations);
 
   return (
     <div className="flex w-full">
@@ -27,7 +31,7 @@ export default function adminLogs() {
         <div className="flex md:flex-row justify-end flex-col gap-4">
           <FilterLaboratory
             buildings={buildings}
-            selectedBuildings={selectedBuilding ? [selectedBuilding] : []}
+            selectedBuildings={selectedBuildings ? [...selectedBuildings] : []}
             onToggleBuilding={toggleBuilding}
             vacantOnly={showVacant}
             onToggleVacant={toggleShowVacant}
@@ -36,7 +40,7 @@ export default function adminLogs() {
           />
           
           <ReserveLogs
-            reservations={formattedReservations}
+            reservations={reservations}
             isLoading={isLoading}
             error={error}
             canManage={true}

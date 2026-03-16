@@ -15,7 +15,7 @@ export async function fetchAllReservations(filters?: AdminLogFilters): Promise<{
   const params = new URLSearchParams();
   if (filters) {
     if (filters.buildings?.length) {
-      params.append('building', filters.buildings[0]);
+      params.append('building', filters.buildings.join(',')); // For now, only support single building filter
     }
     if (filters.timeRange) {
       params.append('startTime', filters.timeRange[0].toString());

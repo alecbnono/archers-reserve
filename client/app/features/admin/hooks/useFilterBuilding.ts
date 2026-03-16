@@ -2,22 +2,30 @@ import { useState } from "react";
 import type { BuildingOption } from "../types/filter.types";
 
 const BUILDINGS: BuildingOption[] = [
+  "Andrew Gonzales Hall",
+  "Connon Hall",
+  "Gokongwei Hall",
+  "St. Joseph Hall",  
   "St. La Salle Hall",
-  "John Gokongwei Sr. Hall",
-  "St. Joseph Hall",
-  "Urbano J. Velasco Hall",
+  "Velasco Hall",
+  "Yuchengco Hall",
 ];
 
 export function useFilterBuilding() {
-  const [selectedBuilding, setSelectedBuilding] = useState<BuildingOption | null>(null);
+  const [selectedBuildings, setSelectedBuildings] = useState<BuildingOption[]>([]);
 
   const toggleBuilding = (building: BuildingOption) => {
-    setSelectedBuilding((prev) => (prev === building ? null : building));
+    setSelectedBuildings(prev => 
+      prev.includes(building)
+        ? prev.filter(b => b !== building)  
+        : [...prev, building]               
+    );
   };
 
+
   return {
-    selectedBuilding,
-    setSelectedBuilding,
+    selectedBuildings,        
+    setSelectedBuildings,
     toggleBuilding,
     buildings: BUILDINGS,
   };

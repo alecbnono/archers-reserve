@@ -1,14 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { fetchAllReservations } from "../services/admin.services";
-import type { AdminLogFilters } from "../types/filter.types";
+import type { AdminLogFilters, UseAdminLogsReturn } from "../types/filter.types";
 import type { ReservationType } from "~/types/reservation.types";
 
-interface UseAdminLogsReturn {
-  reservations: ReservationType[];
-  isLoading: boolean;
-  error: string;
-  refetch: () => Promise<void>;
-}
+
 
 export function useAdminLogs(filters: AdminLogFilters): UseAdminLogsReturn {
   const [reservations, setReservations] = useState<ReservationType[]>([]);
@@ -37,6 +32,7 @@ export function useAdminLogs(filters: AdminLogFilters): UseAdminLogsReturn {
 
   const refetch = useCallback(() => loadAdminLogs(), [loadAdminLogs]);
   
+
   return {
     reservations,
     isLoading,
