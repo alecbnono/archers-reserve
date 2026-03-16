@@ -1,9 +1,10 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
+import type { RoomType } from "@/types/labs.types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LaboratoryCard from "../molecule/LaboratoryCard";
 import FilterLaboratory from "./FilterLaboratory";
 import WeekSelection from "../molecule/WeekSelection";
-import { useRooms } from "~/features/reserve/hooks/useRooms";
+import { minutesToTimeString } from "../../utils/reserve";
 import {
     getWeeksForYear,
     getCurrentWeekNumber,
@@ -12,31 +13,44 @@ import {
 } from "~/features/reserve/utils/date";
 
 export default function LaboratoryList() {
-    const { rooms, isLoading, error } = useRooms();
+    const [rooms, setRooms] = useState<RoomType[]>([]);
+    const [buildings, setBuildings] = useState<string[]>([]);
+    const [selectedBuildings, setSelectedBuildings] = useState<string[]>([]);
+    const [vacantOnly, setVacantOnly] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [timeRange, setTimeRange] = useState<[number, number]>([420, 1080]); // 7:00–18:00
+
+    useEffect(() => {
+        fetch("/rooms/buildings", { credentials: "include" })
+            .then((res) => res.json())
+            .then((data) => setBuildings(data.buildings || []))
+            .catch(() => setError("Could not load buildings"));
+    }, []);
+
+    const toggleBuilding = (b: string) =>
+        setSelectedBuildings((prev) =>
+            prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b],
+        );
 
     const today = useMemo(() => new Date(), []);
     const year = today.getFullYear();
 
-    // All weeks for the current year
     const allWeeks = useMemo(() => getWeeksForYear(year, today), [year, today]);
 
-    // Current week number (for windowing)
     const currentWeekNumber = useMemo(
         () => getCurrentWeekNumber(allWeeks, today),
         [allWeeks, today]
     );
 
-    // Show only ±5 weeks around the current week
     const weeks = useMemo(() => {
         const min = currentWeekNumber - 5;
         const max = currentWeekNumber + 5;
         return allWeeks.filter((w) => w.weekNumber >= min && w.weekNumber <= max);
     }, [allWeeks, currentWeekNumber]);
 
-    // Selected week number (defaults to current week)
     const [selectedWeek, setSelectedWeek] = useState(() => currentWeekNumber);
 
-    // Days for the selected week
     const weekData = useMemo(() => {
         const week = weeks.find((w) => w.weekNumber === selectedWeek);
         if (!week) return null;
@@ -46,13 +60,11 @@ export default function LaboratoryList() {
         };
     }, [weeks, selectedWeek, today]);
 
-    // Active day index (0..6), auto-corrected to first valid day
     const [activeDayIndex, setActiveDayIndex] = useState(() => {
         if (!weekData) return 0;
         return getFirstValidDayIndex(weekData.days);
     });
 
-    // When week changes, auto-correct active day
     const handleWeekChange = useCallback(
         (weekNumber: number) => {
             setSelectedWeek(weekNumber);
@@ -65,7 +77,6 @@ export default function LaboratoryList() {
         [weeks, today]
     );
 
-    // When day tab changes, validate it's not past before applying
     const handleDayChange = useCallback(
         (value: string) => {
             const index = Number(value);
@@ -76,7 +87,6 @@ export default function LaboratoryList() {
         [weekData]
     );
 
-    // Selected date string for passing downstream
     const selectedDate = weekData?.days[activeDayIndex]?.dateString;
 
     const roomContent = isLoading ? (
@@ -103,7 +113,41 @@ export default function LaboratoryList() {
         ))
     );
 
-    // Key for re-triggering stagger animation on day/week change
+    /* Refetch rooms when filter or data changes
+    *  Put in last as needed variables are defined in earlier functions.  
+    */
+    useEffect(() => {
+    const params = new URLSearchParams();
+
+    selectedBuildings.forEach((b) => {
+        params.append("building", b);
+    });
+
+    if (vacantOnly) {
+        params.set("vacant", "true");
+        params.set("start_time", minutesToTimeString(timeRange[0]));
+        params.set("end_time", minutesToTimeString(timeRange[1]));
+        if (selectedDate) params.set("date", selectedDate);
+    }
+
+    const qs = params.toString();
+    const url = `/rooms${qs ? `?${qs}` : ""}`;
+
+    setIsLoading(true);
+    setError(null);
+
+    fetch(url, { credentials: "include" })
+        .then((res) => res.json())
+        .then((data) => {
+            setRooms(data.rooms || []);
+            setIsLoading(false);
+        })
+        .catch(() => {
+            setError("Could not load rooms");
+            setIsLoading(false);
+        });
+    }, [selectedBuildings, vacantOnly, timeRange, selectedDate]);
+
     const animationKey = `${selectedWeek}-${activeDayIndex}`;
 
     return (
@@ -135,7 +179,15 @@ export default function LaboratoryList() {
                         />
                     </div>
                     <div className="flex md:flex-row-reverse justify-end flex-col gap-2">
-                        <FilterLaboratory />
+                        <FilterLaboratory
+                            buildings={buildings}
+                            selectedBuildings={selectedBuildings}
+                            onToggleBuilding={toggleBuilding}
+                            vacantOnly={vacantOnly}
+                            onToggleVacant={setVacantOnly}
+                            timeRange={timeRange}
+                            onTimeRangeChange={setTimeRange}
+                        />
 
                         <TabsContent
                             key={animationKey}

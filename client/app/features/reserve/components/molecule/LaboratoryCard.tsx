@@ -9,26 +9,38 @@ import {
 import {
     Card,
     CardContent,
-    CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
+    CardDescription,
 } from "@/components/ui/card";
 import {
     ChartContainer,
-    ChartTooltip,
-    ChartTooltipContent,
 } from "@/components/ui/chart";
 
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { FaArrowRight } from "react-icons/fa";
 import { Link } from "react-router";
 
 import type { RoomProp } from "~/types/labs.types";
-import { chartData, chartConfig } from "../../utils/chart";
+import {
+    buildChartData,
+    chartConfig,
+    type ChartDataPoint,
+    type OccupancyPoint,
+} from "../../utils/chart";
 
 function LaboratoryCard({ room, selectedDate }: RoomProp) {
     const dateParam = selectedDate ? `&date=${selectedDate}` : "";
+
+    const [occupancyData, setOccupancyData] = useState<ChartDataPoint[]>([]);
+
+    useEffect(() => {
+        if (!room.roomId || !selectedDate) return;
+        fetch(`/rooms/${room.roomId}/occupancy?date=${selectedDate}`)
+            .then(res => res.json())
+            .then((data: OccupancyPoint[]) => setOccupancyData(buildChartData(data)));
+    }, [room.roomId, selectedDate]);
+
     return (
         <Link to={`confirm?roomId=${room.roomId}${dateParam}`} className="grow">
             <Card className="grow">
@@ -47,7 +59,7 @@ function LaboratoryCard({ room, selectedDate }: RoomProp) {
                 <CardContent>
                     <div className="flex flex-col items-center h-32 md:w-96">
                         <ChartContainer config={chartConfig} className="h-32 w-full">
-                            <BarChart data={chartData} barCategoryGap={0} barGap={0}>
+                            <BarChart data={occupancyData} barCategoryGap={0} barGap={0}>
                                 <CartesianGrid vertical={false} />
                                 <XAxis
                                     dataKey="hour"
@@ -56,34 +68,20 @@ function LaboratoryCard({ room, selectedDate }: RoomProp) {
                                     fontSize={12}
                                 />
                                 <YAxis
-                                    domain={[0, room.capacity]}
+                                    domain={[0, room.capacity ?? "auto"]}
                                 />
                                 <Bar
-                                    dataKey="q0"
+                                    dataKey="first"
                                     radius={6}
                                     maxBarSize={8}
-                                    fill="var(--color-q0)"
+                                    fill="var(--color-first)"
                                     isAnimationActive={false}
                                 />
                                 <Bar
-                                    dataKey="q1"
+                                    dataKey="second"
                                     radius={6}
                                     maxBarSize={8}
-                                    fill="var(--color-q1)"
-                                    isAnimationActive={false}
-                                />
-                                <Bar
-                                    dataKey="q2"
-                                    radius={6}
-                                    maxBarSize={8}
-                                    fill="var(--color-q1)"
-                                    isAnimationActive={false}
-                                />
-                                <Bar
-                                    dataKey="q3"
-                                    radius={6}
-                                    maxBarSize={8}
-                                    fill="var(--color-q1)"
+                                    fill="var(--color-second)"
                                     isAnimationActive={false}
                                 />
                             </BarChart>
