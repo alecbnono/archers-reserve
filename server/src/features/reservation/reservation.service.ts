@@ -17,6 +17,7 @@ export interface ReservationRow {
   reservationDate: string;
   timeSlot: string;            // merged 12-hour range string
   building: string;
+  roomId: number;
   roomCode: string;
   seatLabel: string;           // "ALL" or single seat number
   isAnonymous: boolean;
@@ -144,6 +145,7 @@ interface GroupedRawRow {
   request_time: string;
   request_date: string;
   building: string;
+  room_id: number;
   room_code: string;
   is_anonymous: boolean;
   cancelled_at: string | null;
@@ -193,6 +195,7 @@ function mapGroupedRow(row: GroupedRawRow): ReservationRow {
     reservationDate: toYyyyMmDd(row.request_date),
     timeSlot,
     building: row.building,
+    roomId: row.room_id,
     roomCode: row.room_code,
     seatLabel,
     isAnonymous: row.is_anonymous,
@@ -215,32 +218,61 @@ function mapGroupedRow(row: GroupedRawRow): ReservationRow {
  * Groups by batch_key (reservation_batch_id with fallback for legacy rows).
  * The per-row status is computed inside the aggregate so the group can
  * derive a single status.
+ *
+ * Uses a CTE to prefer active rows over cancelled rows within the same batch.
+ * After an edit (soft-cancel old + insert new under same batch_id), only the
+ * new active rows appear — the old cancelled rows are hidden.
+ * If ALL rows in a batch are cancelled (true cancellation), they are shown.
  */
+const BATCH_FILTER_CTE = `
+  WITH batch_rows AS (
+    SELECT r.*,
+           COALESCE(r.reservation_batch_id::text, 'legacy-' || r.reservation_id::text) AS batch_key
+    FROM reservation r
+  ),
+  -- For each batch, determine if any active (non-cancelled) rows exist
+  batch_has_active AS (
+    SELECT batch_key,
+           BOOL_OR(cancelled_at IS NULL) AS has_active
+    FROM batch_rows
+    GROUP BY batch_key
+  ),
+  -- Keep only active rows when they exist; keep cancelled rows only when entire batch is cancelled
+  filtered AS (
+    SELECT br.*
+    FROM batch_rows br
+    JOIN batch_has_active bha ON bha.batch_key = br.batch_key
+    WHERE (bha.has_active AND br.cancelled_at IS NULL)
+       OR (NOT bha.has_active)
+  )
+`;
+
 const GROUPED_SELECT_COLUMNS = `
-    COALESCE(r.reservation_batch_id::text, 'legacy-' || r.reservation_id::text) AS batch_key,
-    MIN(r.request_time)      AS request_time,
-    r.request_date,
+    f.batch_key,
+    MIN(f.request_time)      AS request_time,
+    MAX(f.request_date)      AS request_date,
     MIN(rm.building)         AS building,
+    MIN(f.room_id)           AS room_id,
     MIN(rm.room_code)        AS room_code,
-    BOOL_OR(r.is_anonymous)  AS is_anonymous,
-    MAX(r.cancelled_at)      AS cancelled_at,
-    ARRAY_AGG(DISTINCT r.seat_id)                         AS seat_ids,
+    BOOL_OR(f.is_anonymous)  AS is_anonymous,
+    MAX(f.cancelled_at)      AS cancelled_at,
+    ARRAY_AGG(DISTINCT f.seat_id)                         AS seat_ids,
     ARRAY_AGG(t.start_time ORDER BY t.start_time)         AS start_times,
     ARRAY_AGG(t.end_time   ORDER BY t.start_time)         AS end_times,
     ARRAY_AGG(
       CASE
-        WHEN r.cancelled_at IS NOT NULL                THEN 'CANCELLED'
-        WHEN NOW() < (r.request_date + t.start_time)   THEN 'UPCOMING'
-        WHEN NOW() >= (r.request_date + t.start_time)
-         AND NOW() <= (r.request_date + t.end_time)    THEN 'ONGOING'
+        WHEN f.cancelled_at IS NOT NULL                THEN 'CANCELLED'
+        WHEN NOW() < (f.request_date + t.start_time)   THEN 'UPCOMING'
+        WHEN NOW() >= (f.request_date + t.start_time)
+         AND NOW() <= (f.request_date + t.end_time)    THEN 'ONGOING'
         ELSE 'COMPLETED'
       END
     ) AS statuses
 `;
 
 const GROUPED_GROUP_BY = `
-  GROUP BY batch_key, r.request_date
-  ORDER BY r.request_date DESC, MIN(t.start_time) DESC
+  GROUP BY f.batch_key
+  ORDER BY MAX(f.request_date) DESC, MIN(t.start_time) DESC
 `;
 
 /**
@@ -251,12 +283,13 @@ export async function getUserReservations(
   userId: number,
 ): Promise<ReservationRow[]> {
   const query = `
+    ${BATCH_FILTER_CTE}
     SELECT
       ${GROUPED_SELECT_COLUMNS}
-    FROM reservation r
-    JOIN timeslot t  ON t.timeslot_id = r.timeslot_id
-    JOIN room     rm ON rm.room_id    = r.room_id
-    WHERE r.user_id = $1
+    FROM filtered f
+    JOIN timeslot t  ON t.timeslot_id = f.timeslot_id
+    JOIN room     rm ON rm.room_id    = f.room_id
+    WHERE f.user_id = $1
     ${GROUPED_GROUP_BY}
   `;
 
@@ -271,16 +304,17 @@ export async function getUserReservations(
  */
 export async function getAllReservations(): Promise<ReservationRow[]> {
   const query = `
+    ${BATCH_FILTER_CTE}
     SELECT
       ${GROUPED_SELECT_COLUMNS},
       MIN(u.first_name) AS first_name,
       MIN(u.last_name)  AS last_name,
       MIN(u.email)      AS email,
       MIN(u.role)        AS role
-    FROM reservation r
-    JOIN timeslot t  ON t.timeslot_id = r.timeslot_id
-    JOIN room     rm ON rm.room_id    = r.room_id
-    JOIN "user"   u  ON u.user_id     = r.user_id
+    FROM filtered f
+    JOIN timeslot t  ON t.timeslot_id = f.timeslot_id
+    JOIN room     rm ON rm.room_id    = f.room_id
+    JOIN "user"   u  ON u.user_id     = f.user_id
     ${GROUPED_GROUP_BY}
   `;
 
@@ -301,6 +335,7 @@ export async function getAllReservations(): Promise<ReservationRow[]> {
 export async function getAvailability(
   roomId: number,
   date: string,
+  excludeBatchId?: string,
 ): Promise<AvailabilityResult> {
   // 1. Fetch the room
   const roomResult = await pool.query(
@@ -338,14 +373,25 @@ export async function getAvailability(
   );
 
   // 4. Fetch active reservations for this room + date
-  const reservationResult = await pool.query(
-    `SELECT timeslot_id, seat_id
-     FROM reservation
-     WHERE room_id = $1
-       AND request_date = $2
-       AND cancelled_at IS NULL`,
-    [roomId, date],
-  );
+  //    When editing, exclude the batch being edited so those seats aren't shown as occupied
+  const reservationQuery = excludeBatchId
+    ? `SELECT timeslot_id, seat_id
+       FROM reservation
+       WHERE room_id = $1
+         AND request_date = $2
+         AND cancelled_at IS NULL
+         AND reservation_batch_id != $3`
+    : `SELECT timeslot_id, seat_id
+       FROM reservation
+       WHERE room_id = $1
+         AND request_date = $2
+         AND cancelled_at IS NULL`;
+
+  const reservationParams: any[] = excludeBatchId
+    ? [roomId, date, excludeBatchId]
+    : [roomId, date];
+
+  const reservationResult = await pool.query(reservationQuery, reservationParams);
 
   // Group reserved seats by timeslot
   const reservedByTimeslot = new Map<number, number[]>();
@@ -636,7 +682,17 @@ export async function cancelReservationBatch(
     throw new AppError("Reservation batch not found", 404);
   }
 
-  const rows = fetchResult.rows;
+  const allRows = fetchResult.rows;
+
+  // After a previous edit the batch contains both cancelled (old generation)
+  // and active (current generation) rows.  Only cancel the active ones.
+  const activeRows = allRows.filter((r: any) => r.cancelled_at === null);
+
+  if (activeRows.length === 0) {
+    throw new AppError("This reservation has already been cancelled", 409);
+  }
+
+  const rows = activeRows;
 
   // 2. Permission check: owner or ADMIN
   const ownerUserId: number = rows[0].user_id;
@@ -644,12 +700,9 @@ export async function cancelReservationBatch(
     throw new AppError("You do not have permission to cancel this reservation", 403);
   }
 
-  // 3. Validate all rows are cancellable
+  // 3. Validate all active rows are cancellable (UPCOMING)
   const now = new Date();
   for (const row of rows) {
-    if (row.cancelled_at !== null) {
-      throw new AppError("This reservation has already been cancelled", 409);
-    }
     const slotStart = new Date(row.slot_start);
     if (now >= slotStart) {
       throw new AppError(
@@ -659,7 +712,7 @@ export async function cancelReservationBatch(
     }
   }
 
-  // 4. Soft-cancel all rows in the batch
+  // 4. Soft-cancel all active rows in the batch
   const ids = rows.map((r: any) => r.reservation_id);
   const updateResult = await pool.query(
     `UPDATE reservation
@@ -670,4 +723,420 @@ export async function cancelReservationBatch(
   );
 
   return { cancelledCount: updateResult.rowCount ?? 0 };
+}
+
+// ─── Batch detail (for edit prefill) ──────────────────────────────────
+
+export interface BatchDetail {
+  batchId: string;
+  userId: number;
+  roomId: number;
+  roomCode: string;
+  building: string;
+  date: string;           // YYYY-MM-DD
+  timeslotIds: number[];
+  seatId: number | null;  // null when reserveAll
+  reserveAll: boolean;
+  isAnonymous: boolean;
+  status: ReservationStatus;
+}
+
+/**
+ * Fetch editable detail for a reservation batch.
+ * Owner or ADMIN only. Returns raw fields needed to prefill the edit form.
+ */
+export async function getReservationBatchDetail(
+  batchId: string,
+  actorUserId: number,
+  actorRole: UserRole,
+): Promise<BatchDetail> {
+  const isLegacy = batchId.startsWith("legacy-");
+
+  let fetchQuery: string;
+  let fetchParams: any[];
+
+  if (isLegacy) {
+    const reservationId = parseInt(batchId.replace("legacy-", ""), 10);
+    if (isNaN(reservationId) || reservationId <= 0) {
+      throw new AppError("Invalid batch ID", 400);
+    }
+    fetchQuery = `
+      SELECT r.reservation_id, r.user_id, r.room_id, r.seat_id,
+             r.timeslot_id, r.request_date, r.is_anonymous, r.cancelled_at,
+             rm.room_code, rm.building,
+             (r.request_date + t.start_time)::timestamp AS slot_start
+      FROM reservation r
+      JOIN timeslot t  ON t.timeslot_id = r.timeslot_id
+      JOIN room     rm ON rm.room_id    = r.room_id
+      WHERE r.reservation_id = $1
+    `;
+    fetchParams = [reservationId];
+  } else {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(batchId)) {
+      throw new AppError("Invalid batch ID", 400);
+    }
+    fetchQuery = `
+      SELECT r.reservation_id, r.user_id, r.room_id, r.seat_id,
+             r.timeslot_id, r.request_date, r.is_anonymous, r.cancelled_at,
+             rm.room_code, rm.building,
+             (r.request_date + t.start_time)::timestamp AS slot_start
+      FROM reservation r
+      JOIN timeslot t  ON t.timeslot_id = r.timeslot_id
+      JOIN room     rm ON rm.room_id    = r.room_id
+      WHERE r.reservation_batch_id = $1
+    `;
+    fetchParams = [batchId];
+  }
+
+  const result = await pool.query(fetchQuery, fetchParams);
+
+  if (result.rows.length === 0) {
+    throw new AppError("Reservation batch not found", 404);
+  }
+
+  const allRows = result.rows;
+
+  // After a previous edit the batch contains both cancelled (old generation)
+  // and active (current generation) rows.  Prefer active rows for detail/prefill.
+  const activeRows = allRows.filter((r: any) => r.cancelled_at === null);
+  const rows = activeRows.length > 0 ? activeRows : allRows;
+
+  // Permission check
+  const ownerUserId: number = rows[0].user_id;
+  if (actorUserId !== ownerUserId && actorRole !== "ADMIN") {
+    throw new AppError("You do not have permission to view this reservation", 403);
+  }
+
+  // Derive status — must be UPCOMING to be editable (checked by caller)
+  const now = new Date();
+  const statuses: ReservationStatus[] = rows.map((row: any) => {
+    if (row.cancelled_at !== null) return "CANCELLED" as ReservationStatus;
+    const slotStart = new Date(row.slot_start);
+    if (now < slotStart) return "UPCOMING" as ReservationStatus;
+    // We don't need endTime for the detail check; if started, it's ONGOING or COMPLETED
+    return "ONGOING" as ReservationStatus;
+  });
+  const status = deriveGroupStatus(statuses);
+
+  // Extract unique timeslot IDs and seat IDs from the current generation
+  const timeslotIds = [...new Set(rows.map((r: any) => r.timeslot_id as number))].sort(
+    (a, b) => a - b,
+  );
+  const uniqueSeatIds = [...new Set(rows.map((r: any) => r.seat_id as number))].sort(
+    (a, b) => a - b,
+  );
+
+  // Determine reserveAll: if more than 1 unique seat, it was a reserveAll submission
+  const seatCountResult = await pool.query(
+    `SELECT COUNT(*)::int AS seat_count FROM seat WHERE room_id = $1`,
+    [rows[0].room_id],
+  );
+  const totalSeats: number = seatCountResult.rows[0].seat_count;
+  const reserveAll = uniqueSeatIds.length === totalSeats && totalSeats > 1;
+
+  return {
+    batchId,
+    userId: ownerUserId,
+    roomId: rows[0].room_id,
+    roomCode: rows[0].room_code,
+    building: rows[0].building,
+    date: toYyyyMmDd(rows[0].request_date),
+    timeslotIds,
+    seatId: reserveAll ? null : uniqueSeatIds[0],
+    reserveAll,
+    isAnonymous: rows[0].is_anonymous,
+    status,
+  };
+}
+
+// ─── Reservation editing (replace-in-place) ───────────────────────────
+
+export interface EditReservationInput {
+  batchId: string;
+  actorUserId: number;
+  actorRole: UserRole;
+  roomId: number;
+  date: string;          // YYYY-MM-DD
+  timeslotIds: number[];
+  seatId?: number | null;
+  reserveAll: boolean;
+  isAnonymous: boolean;
+}
+
+export interface EditReservationResult {
+  updatedCount: number;
+  overriddenCount: number;
+}
+
+/**
+ * Edit a reservation batch with replace-in-place semantics.
+ *
+ * Transactional flow:
+ * 1. Lock existing batch rows FOR UPDATE.
+ * 2. Validate: owner or ADMIN, all rows UPCOMING, not cancelled.
+ * 3. Soft-cancel old rows (cancelled_at = NOW()).
+ * 4. Validate new selections (room, seats, timeslots, no past slots).
+ * 5. Conflict check with same override policy as create:
+ *    - FACULTY/ADMIN can soft-cancel conflicting STUDENT reservations.
+ *    - Cannot override FACULTY/ADMIN reservations.
+ * 6. Insert new rows under the SAME reservation_batch_id.
+ *
+ * The original user_id is preserved (admin edits keep original owner).
+ */
+export async function editReservationBatch(
+  input: EditReservationInput,
+): Promise<EditReservationResult> {
+  const {
+    batchId, actorUserId, actorRole,
+    roomId, date, timeslotIds, seatId, reserveAll, isAnonymous,
+  } = input;
+
+  const isLegacy = batchId.startsWith("legacy-");
+
+  // --- Validate room exists ---
+  const roomResult = await pool.query(
+    `SELECT room_id FROM room WHERE room_id = $1`,
+    [roomId],
+  );
+  if (roomResult.rows.length === 0) {
+    throw new AppError("Room not found", 404);
+  }
+
+  // --- Validate timeslots exist ---
+  const tsResult = await pool.query(
+    `SELECT timeslot_id FROM timeslot WHERE timeslot_id = ANY($1::int[])`,
+    [timeslotIds],
+  );
+  if (tsResult.rows.length !== timeslotIds.length) {
+    throw new AppError("One or more timeslot IDs are invalid", 400);
+  }
+
+  // --- Reject past timeslots ---
+  const pastCheck = await pool.query(
+    `SELECT timeslot_id
+     FROM timeslot
+     WHERE timeslot_id = ANY($1::int[])
+       AND (($2::date + start_time)::timestamp <= NOW())`,
+    [timeslotIds, date],
+  );
+  if (pastCheck.rows.length > 0) {
+    throw new AppError("One or more selected timeslots have already passed", 400);
+  }
+
+  // --- Resolve target seat IDs ---
+  let targetSeatIds: number[];
+
+  if (reserveAll) {
+    if (actorRole === "STUDENT") {
+      throw new AppError("Students cannot reserve all seats", 403);
+    }
+    const seatResult = await pool.query(
+      `SELECT seat_id FROM seat WHERE room_id = $1 ORDER BY seat_id`,
+      [roomId],
+    );
+    targetSeatIds = seatResult.rows.map((r: any) => r.seat_id);
+    if (targetSeatIds.length === 0) {
+      throw new AppError("Room has no seats", 400);
+    }
+  } else {
+    if (seatId == null) {
+      throw new AppError("seatId is required when reserveAll is false", 400);
+    }
+    const seatCheck = await pool.query(
+      `SELECT 1 FROM seat WHERE room_id = $1 AND seat_id = $2`,
+      [roomId, seatId],
+    );
+    if (seatCheck.rows.length === 0) {
+      throw new AppError("Seat not found in this room", 404);
+    }
+    targetSeatIds = [seatId];
+  }
+
+  // --- Begin transaction ---
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1. Lock and fetch existing batch rows
+    let lockQuery: string;
+    let lockParams: any[];
+
+    if (isLegacy) {
+      const reservationId = parseInt(batchId.replace("legacy-", ""), 10);
+      if (isNaN(reservationId) || reservationId <= 0) {
+        throw new AppError("Invalid batch ID", 400);
+      }
+      lockQuery = `
+        SELECT r.reservation_id, r.user_id, r.cancelled_at,
+               (r.request_date + t.start_time)::timestamp AS slot_start
+        FROM reservation r
+        JOIN timeslot t ON t.timeslot_id = r.timeslot_id
+        WHERE r.reservation_id = $1
+        FOR UPDATE OF r
+      `;
+      lockParams = [reservationId];
+    } else {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(batchId)) {
+        throw new AppError("Invalid batch ID", 400);
+      }
+      lockQuery = `
+        SELECT r.reservation_id, r.user_id, r.cancelled_at,
+               (r.request_date + t.start_time)::timestamp AS slot_start
+        FROM reservation r
+        JOIN timeslot t ON t.timeslot_id = r.timeslot_id
+        WHERE r.reservation_batch_id = $1
+        FOR UPDATE OF r
+      `;
+      lockParams = [batchId];
+    }
+
+    const lockResult = await client.query(lockQuery, lockParams);
+
+    if (lockResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      throw new AppError("Reservation batch not found", 404);
+    }
+
+    // After a previous edit the batch contains both cancelled (old generation)
+    // and active (current generation) rows.  We only care about the active ones.
+    const allRows = lockResult.rows;
+    const activeRows = allRows.filter((r: any) => r.cancelled_at === null);
+
+    // If no active rows remain the entire batch was truly cancelled — reject.
+    if (activeRows.length === 0) {
+      await client.query("ROLLBACK");
+      throw new AppError("Cannot edit a cancelled reservation", 409);
+    }
+
+    const oldRows = activeRows;
+    const ownerUserId: number = oldRows[0].user_id;
+
+    // 2. Permission check
+    if (actorUserId !== ownerUserId && actorRole !== "ADMIN") {
+      await client.query("ROLLBACK");
+      throw new AppError("You do not have permission to edit this reservation", 403);
+    }
+
+    // 3. Validate all active rows are UPCOMING
+    const now = new Date();
+    for (const row of oldRows) {
+      const slotStart = new Date(row.slot_start);
+      if (now >= slotStart) {
+        await client.query("ROLLBACK");
+        throw new AppError(
+          "Cannot edit a reservation that has already started or completed",
+          409,
+        );
+      }
+    }
+
+    // 4. Soft-cancel active rows (old generation)
+    const oldIds = oldRows.map((r: any) => r.reservation_id);
+    await client.query(
+      `UPDATE reservation
+       SET cancelled_at = NOW()
+       WHERE reservation_id = ANY($1::int[])
+         AND cancelled_at IS NULL`,
+      [oldIds],
+    );
+
+    // 5. Check for conflicts (excluding the rows we just cancelled, which belong to this batch)
+    const conflictResult = await client.query(
+      `SELECT r.reservation_id, r.seat_id, r.timeslot_id, u.role AS owner_role
+       FROM reservation r
+       JOIN "user" u ON u.user_id = r.user_id
+       WHERE r.room_id = $1
+         AND r.request_date = $2
+         AND r.timeslot_id = ANY($3::int[])
+         AND r.seat_id = ANY($4::int[])
+         AND r.cancelled_at IS NULL`,
+      [roomId, date, timeslotIds, targetSeatIds],
+    );
+
+    const conflicts = conflictResult.rows;
+    let overriddenCount = 0;
+
+    if (conflicts.length > 0) {
+      const canOverride = actorRole === "FACULTY" || actorRole === "ADMIN";
+
+      if (!canOverride) {
+        await client.query("ROLLBACK");
+        throw new AppError(
+          "One or more selected slots are already reserved",
+          409,
+        );
+      }
+
+      const nonStudentConflict = conflicts.find(
+        (c: any) => c.owner_role !== "STUDENT",
+      );
+      if (nonStudentConflict) {
+        await client.query("ROLLBACK");
+        throw new AppError(
+          "Cannot override reservation owned by faculty or admin",
+          409,
+        );
+      }
+
+      // Soft-cancel conflicting student reservations
+      const conflictIds = conflicts.map((c: any) => c.reservation_id);
+      await client.query(
+        `UPDATE reservation
+         SET cancelled_at = NOW()
+         WHERE reservation_id = ANY($1::int[])`,
+        [conflictIds],
+      );
+      overriddenCount = conflictIds.length;
+    }
+
+    // 6. Insert new rows under the SAME batch ID, preserving original owner
+    // For legacy batches, we need to assign a real UUID since we're inserting new rows
+    const insertBatchId = isLegacy ? randomUUID() : batchId;
+
+    const newRows: [string, number, number, number, number, string, boolean][] = [];
+    for (const sid of targetSeatIds) {
+      for (const tid of timeslotIds) {
+        newRows.push([insertBatchId, ownerUserId, sid, roomId, tid, date, isAnonymous]);
+      }
+    }
+
+    const valuePlaceholders: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+    for (const [bid, uid, sid, rid, tid, d, anon] of newRows) {
+      valuePlaceholders.push(
+        `($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6})`,
+      );
+      params.push(bid, uid, sid, rid, tid, d, anon);
+      idx += 7;
+    }
+
+    await client.query(
+      `INSERT INTO reservation (reservation_batch_id, user_id, seat_id, room_id, timeslot_id, request_date, is_anonymous)
+       VALUES ${valuePlaceholders.join(", ")}`,
+      params,
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      updatedCount: newRows.length,
+      overriddenCount,
+    };
+  } catch (err: any) {
+    await client.query("ROLLBACK").catch(() => {});
+
+    if (err instanceof AppError) throw err;
+
+    if (err.code === "23505") {
+      throw new AppError(
+        "One or more selected slots are already reserved (race condition)",
+        409,
+      );
+    }
+
+    throw new AppError("Failed to edit reservation", 500);
+  } finally {
+    client.release();
+  }
 }

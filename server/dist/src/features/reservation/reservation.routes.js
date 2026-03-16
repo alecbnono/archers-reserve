@@ -12,4 +12,8 @@ router.get("/me", requireAuth, reservationController.getMyReservations);
 router.get("/", requireAuth, reservationController.getAllReservations);
 // PATCH /reservations/:batchId/cancel — cancel an entire reservation batch
 router.patch("/:batchId/cancel", requireAuth, reservationController.cancelReservationBatch);
+// GET /reservations/:batchId — batch detail for edit prefill
+router.get("/:batchId", requireAuth, reservationController.getReservationBatchDetail);
+// PATCH /reservations/:batchId — edit a reservation batch (replace-in-place)
+router.patch("/:batchId", requireAuth, reservationController.editReservationBatch);
 export default router;

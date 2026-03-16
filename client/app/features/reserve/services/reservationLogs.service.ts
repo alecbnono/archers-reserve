@@ -73,3 +73,95 @@ export async function cancelReservationBatch(
     return { error: "Network error cancelling reservation" };
   }
 }
+
+// ─── Batch detail (for edit prefill) ──────────────────────────────────
+
+export interface BatchDetailResult {
+  batchId: string;
+  userId: number;
+  roomId: number;
+  roomCode: string;
+  building: string;
+  date: string;
+  timeslotIds: number[];
+  seatId: number | null;
+  reserveAll: boolean;
+  isAnonymous: boolean;
+  status: string;
+}
+
+export interface FetchBatchDetailResult {
+  data?: BatchDetailResult;
+  error?: string;
+}
+
+/**
+ * Fetch batch detail for edit prefill (GET /reservations/:batchId).
+ */
+export async function fetchReservationBatchDetail(
+  batchId: string,
+): Promise<FetchBatchDetailResult> {
+  try {
+    const res = await fetch(`${BASE_URL}/${encodeURIComponent(batchId)}`, {
+      credentials: "include",
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return { error: data.error || "Failed to fetch batch detail" };
+    }
+
+    return { data };
+  } catch {
+    return { error: "Network error fetching batch detail" };
+  }
+}
+
+// ─── Edit reservation batch ───────────────────────────────────────────
+
+export interface EditReservationPayload {
+  roomId: number;
+  date: string;
+  timeslotIds: number[];
+  seatId?: number | null;
+  reserveAll: boolean;
+  isAnonymous: boolean;
+}
+
+export interface EditReservationResult {
+  data?: {
+    message: string;
+    updatedCount: number;
+    overriddenCount: number;
+  };
+  error?: string;
+}
+
+/**
+ * Edit reservation batch (PATCH /reservations/:batchId).
+ * Replace-in-place semantics — same batch ID is preserved.
+ */
+export async function editReservationBatch(
+  batchId: string,
+  payload: EditReservationPayload,
+): Promise<EditReservationResult> {
+  try {
+    const res = await fetch(`${BASE_URL}/${encodeURIComponent(batchId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return { error: data.error || "Failed to edit reservation" };
+    }
+
+    return { data };
+  } catch {
+    return { error: "Network error editing reservation" };
+  }
+}

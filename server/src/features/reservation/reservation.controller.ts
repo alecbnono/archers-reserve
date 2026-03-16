@@ -137,7 +137,9 @@ export async function getAvailability(
       return;
     }
 
-    const availability = await reservationService.getAvailability(roomId, date);
+    const excludeBatchId = req.query.excludeBatchId as string | undefined;
+
+    const availability = await reservationService.getAvailability(roomId, date, excludeBatchId);
     res.status(200).json(availability);
   } catch (error: any) {
     res
@@ -171,6 +173,116 @@ export async function cancelReservationBatch(
     res.status(200).json({
       message: "Reservation cancelled successfully",
       cancelledCount: result.cancelledCount,
+    });
+  } catch (error: any) {
+    res
+      .status(error.status || 500)
+      .json({ error: error.message || "Internal server error" });
+  }
+}
+
+/**
+ * GET /reservations/:batchId — fetch batch detail for edit prefill.
+ * Owner or ADMIN only.
+ */
+export async function getReservationBatchDetail(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
+  try {
+    const { batchId } = req.params;
+
+    if (!batchId || typeof batchId !== "string") {
+      res.status(400).json({ error: "Valid batchId is required" });
+      return;
+    }
+
+    const detail = await reservationService.getReservationBatchDetail(
+      batchId,
+      req.user!.id,
+      req.user!.role,
+    );
+
+    res.status(200).json(detail);
+  } catch (error: any) {
+    res
+      .status(error.status || 500)
+      .json({ error: error.message || "Internal server error" });
+  }
+}
+
+/**
+ * PATCH /reservations/:batchId — edit a reservation batch (replace-in-place).
+ * Owner or ADMIN only. Batch must be UPCOMING.
+ * Body: { roomId, date, timeslotIds, seatId?, reserveAll, isAnonymous }
+ */
+export async function editReservationBatch(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
+  try {
+    const { batchId } = req.params;
+
+    if (!batchId || typeof batchId !== "string") {
+      res.status(400).json({ error: "Valid batchId is required" });
+      return;
+    }
+
+    const { roomId, date, timeslotIds, seatId, reserveAll, isAnonymous } =
+      req.body;
+
+    // --- Basic validation (same as create) ---
+    if (!roomId || typeof roomId !== "number" || roomId <= 0) {
+      res.status(400).json({ error: "Valid roomId is required" });
+      return;
+    }
+
+    if (!date || typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      res.status(400).json({ error: "Valid date (YYYY-MM-DD) is required" });
+      return;
+    }
+
+    if (
+      !Array.isArray(timeslotIds) ||
+      timeslotIds.length === 0 ||
+      !timeslotIds.every((id: any) => typeof id === "number" && id > 0)
+    ) {
+      res
+        .status(400)
+        .json({ error: "timeslotIds must be a non-empty array of positive integers" });
+      return;
+    }
+
+    const uniqueTimeslots = [...new Set(timeslotIds)];
+
+    if (typeof reserveAll !== "boolean") {
+      res.status(400).json({ error: "reserveAll must be a boolean" });
+      return;
+    }
+
+    if (!reserveAll && (seatId == null || typeof seatId !== "number" || seatId <= 0)) {
+      res
+        .status(400)
+        .json({ error: "Valid seatId is required when reserveAll is false" });
+      return;
+    }
+
+    const result = await reservationService.editReservationBatch({
+      batchId,
+      actorUserId: req.user!.id,
+      actorRole: req.user!.role,
+      roomId,
+      date,
+      timeslotIds: uniqueTimeslots,
+      seatId: reserveAll ? null : seatId,
+      reserveAll,
+      isAnonymous: isAnonymous === true,
+    });
+
+    res.status(200).json({
+      message: "Reservation updated successfully",
+      updatedCount: result.updatedCount,
+      overriddenCount: result.overriddenCount,
     });
   } catch (error: any) {
     res

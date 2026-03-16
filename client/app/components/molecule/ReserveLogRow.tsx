@@ -1,6 +1,6 @@
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "~/components/ui/button";
-import { Link } from "react-router";
+import { useNavigate } from "react-router";
 
 import type { ReservationType } from "~/types/reservation.types";
 import { formatDateTime, STATUS_STYLES } from "~/lib/utils";
@@ -18,6 +18,7 @@ export default function ReserveLogRow({
     onCancel: (batchId: string) => Promise<boolean>;
     isCancelling: boolean;
 }) {
+    const navigate = useNavigate();
     const requested = formatDateTime(reservation.requestTime);
     const requestedStr = `${requested.datePart} ${requested.timePart}`;
 
@@ -35,6 +36,16 @@ export default function ReserveLogRow({
 
     // Actions are only meaningful on upcoming reservations
     const isManageable = canManage && reservation.status === "UPCOMING";
+
+    const handleEdit = () => {
+        if (!isManageable) return;
+        const params = new URLSearchParams({
+            roomId: String(reservation.roomId),
+            date: dateStr,
+            batchId: reservation.batchId,
+        });
+        navigate(`/dashboard/lab/confirm?${params.toString()}`);
+    };
 
     return (
         <TableRow>
@@ -77,11 +88,13 @@ export default function ReserveLogRow({
                         </Button>
                     </TableCell>
                     <TableCell>
-                        <Link to="/dashboard/lab">
-                            <Button variant="secondary" disabled={!isManageable}>
-                                Edit
-                            </Button>
-                        </Link>
+                        <Button
+                            variant="secondary"
+                            disabled={!isManageable}
+                            onClick={handleEdit}
+                        >
+                            Edit
+                        </Button>
                     </TableCell>
                 </>
             )}

@@ -6,6 +6,7 @@ export type ReservationType = {
   reservationDate: string;
   timeSlot: string;           // pre-merged 12-hour range from backend
   building: string;
+  roomId: number;
   roomCode: string;
   seatLabel: string;          // "ALL" or single seat number
   isAnonymous: boolean;

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router";
 import Timeslot from "../atom/Timeslot";
 import { ToggleGroup } from "@/components/ui/toggle-group";
@@ -12,6 +12,10 @@ import ConfirmationDisplay from "../molecule/ConfirmationDisplay";
 import { useAuthStore } from "~/store/user.store";
 import { useAvailability } from "~/features/reserve/hooks/useAvailability";
 import { createReservation } from "~/features/reserve/services/reservation.service";
+import {
+    fetchReservationBatchDetail,
+    editReservationBatch,
+} from "~/features/reserve/services/reservationLogs.service";
 import { isTimeslotPast } from "~/features/reserve/utils/reserve";
 
 export default function LaboratoryConfirmation() {
@@ -31,8 +35,12 @@ export default function LaboratoryConfirmation() {
         return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
     }, [searchParams]);
 
-    // --- Fetch availability ---
-    const { data: availability, isLoading, error } = useAvailability(roomId, date);
+    // --- Edit mode detection ---
+    const batchId = useMemo(() => searchParams.get("batchId"), [searchParams]);
+    const isEditMode = batchId !== null;
+
+    // --- Fetch availability (exclude own batch seats during edit) ---
+    const { data: availability, isLoading, error } = useAvailability(roomId, date, batchId);
 
     // --- Reservation selection state ---
     const [selectedTimeslots, setSelectedTimeslots] = useState<string[]>([]);
@@ -42,14 +50,71 @@ export default function LaboratoryConfirmation() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState("");
 
-    // Reset selection when availability data changes (new room or date)
+    // --- Edit mode: fetch batch detail and prefill ---
+    const [editLoading, setEditLoading] = useState(false);
+    const [editError, setEditError] = useState("");
+    const prefillApplied = useRef(false);
+
     useEffect(() => {
+        if (!isEditMode || !batchId || !availability) return;
+        // Only prefill once per batchId + availability combo
+        if (prefillApplied.current) return;
+
+        let cancelled = false;
+
+        (async () => {
+            setEditLoading(true);
+            setEditError("");
+
+            const result = await fetchReservationBatchDetail(batchId);
+
+            if (cancelled) return;
+            setEditLoading(false);
+
+            if (result.error) {
+                setEditError(result.error);
+                return;
+            }
+
+            if (!result.data) return;
+
+            const detail = result.data;
+
+            if (detail.status !== "UPCOMING") {
+                setEditError("Only upcoming reservations can be edited.");
+                return;
+            }
+
+            // Apply prefill
+            setSelectedTimeslots(detail.timeslotIds.map(String));
+            setReserveAll(detail.reserveAll);
+            setSelectedSeat(detail.seatId);
+            setIsAnonymous(detail.isAnonymous);
+            setSubmitError("");
+
+            prefillApplied.current = true;
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isEditMode, batchId, availability]);
+
+    // Reset selection when availability data changes (new room or date)
+    // but NOT in edit mode (prefill handles that)
+    useEffect(() => {
+        if (isEditMode) return;
         setSelectedTimeslots([]);
         setSelectedSeat(null);
         setReserveAll(false);
         setIsAnonymous(false);
         setSubmitError("");
-    }, [availability]);
+    }, [availability, isEditMode]);
+
+    // Reset prefill flag when batchId changes
+    useEffect(() => {
+        prefillApplied.current = false;
+    }, [batchId]);
 
     // --- Compute occupied seats across all selected timeslots ---
     // A seat is occupied if it's reserved in ANY selected timeslot
@@ -118,14 +183,18 @@ export default function LaboratoryConfirmation() {
         setIsSubmitting(true);
         setSubmitError("");
 
-        const result = await createReservation({
+        const payload = {
             roomId,
             date,
             timeslotIds: selectedTimeslots.map(Number),
             seatId: reserveAll ? null : selectedSeat,
             reserveAll,
             isAnonymous,
-        });
+        };
+
+        const result = isEditMode && batchId
+            ? await editReservationBatch(batchId, payload)
+            : await createReservation(payload);
 
         setIsSubmitting(false);
 
@@ -134,11 +203,15 @@ export default function LaboratoryConfirmation() {
             return;
         }
 
-        // Success — navigate to profile page to see the new reservation
-        navigate("/dashboard/profile");
+        // Success — navigate based on role/context
+        const redirectTo = currentUser?.role === "ADMIN" && isEditMode
+            ? "/dashboard/logs"
+            : "/dashboard/profile";
+        navigate(redirectTo);
     }, [
         roomId, date, selectedTimeslots, selectedSeat,
         reserveAll, isAnonymous, isSubmitting, navigate,
+        isEditMode, batchId,
     ]);
 
     // --- Validation ---
@@ -147,12 +220,15 @@ export default function LaboratoryConfirmation() {
     const hasContext = roomId !== null && date !== null && availability !== null;
     const isValid = hasContext && hasTimeslots && hasSeat;
 
+    // --- Page title ---
+    const pageTitle = isEditMode ? "Edit your booking" : "Confirm your booking";
+
     // --- Invalid params state ---
     if (!roomId || !date) {
         return (
             <div className="flex flex-col items-center w-full pt-8">
                 <h1 className="text-3xl font-semibold mb-8">
-                    Confirm your booking
+                    {pageTitle}
                 </h1>
                 <p className="text-destructive text-center py-8">
                     Invalid booking link. Please select a room and date from the lab list.
@@ -162,36 +238,41 @@ export default function LaboratoryConfirmation() {
     }
 
     // --- Loading / error states ---
-    if (isLoading) {
+    if (isLoading || editLoading) {
         return (
             <div className="flex flex-col items-center w-full pt-8">
                 <h1 className="text-3xl font-semibold mb-8">
-                    Confirm your booking
+                    {pageTitle}
                 </h1>
                 <p className="text-muted-foreground text-center py-8">
-                    Loading availability...
+                    {editLoading ? "Loading reservation..." : "Loading availability..."}
                 </p>
             </div>
         );
     }
 
-    if (error) {
+    if (error || editError) {
         return (
             <div className="flex flex-col items-center w-full pt-8">
                 <h1 className="text-3xl font-semibold mb-8">
-                    Confirm your booking
+                    {pageTitle}
                 </h1>
                 <p className="text-destructive text-center py-8">
-                    {error}
+                    {editError || error}
                 </p>
             </div>
         );
     }
+
+    // --- Submit button label ---
+    const submitLabel = isSubmitting
+        ? (isEditMode ? "Updating..." : "Submitting...")
+        : (isEditMode ? "Update Reservation" : "Submit");
 
     return (
         <div className="flex flex-col items-center w-full pt-8">
             <h1 className="text-3xl font-semibold mb-8 md:mb-0">
-                Confirm your booking
+                {pageTitle}
             </h1>
             <div className="flex flex-col gap-8 md:gap-16 md:flex-row items-center justify-center px-8 w-full grow flex-wrap">
                 <ToggleGroup
@@ -248,7 +329,7 @@ export default function LaboratoryConfirmation() {
                         disabled={!isValid || isSubmitting}
                         onClick={handleSubmit}
                     >
-                        {isSubmitting ? "Submitting..." : "Submit"}
+                        {submitLabel}
                     </Button>
                     {submitError && (
                         <p className="text-destructive text-sm text-center">
