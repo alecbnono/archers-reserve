@@ -1,43 +1,53 @@
-import type { Route } from "./+types/adminLogs";
+import { useMemo } from "react";
+import { useFilters } from "~/features/admin/hooks/useFilters";
+import { useAdminLogs } from "~/features/admin/hooks/useAdminLogs";
 import FilterLaboratory from "~/features/reserve/components/organism/FilterLaboratory";
 import ReserveLogs from "~/components/organisms/ReserveLogs";
-import { useReservationLogs } from "~/features/reserve/hooks/useReservationLogs";
-
-export function meta({ }: Route.MetaArgs) {
-    return [
-        { title: "ArchersReserve" },
-        { name: "description", content: "Your true laboratory experience" },
-    ];
-}
 
 export default function adminLogs() {
-    const {
-        reservations,
-        isLoading,
-        error,
-        cancelBatch,
-        cancellingBatchId,
-        cancelError,
-    } = useReservationLogs(true);
+  const {
+    building: { buildings, selectedBuildings, toggleBuilding },
+    time: { timeRange, updateTimeRange },
+  } = useFilters();
 
-    return (
-        <div className="flex w-full">
-            <div className="flex flex-col gap-6 p-2 md:p-8 w-full">
-                <h1 className="text-3xl font-bold ml-4">Reservation Logs</h1>
-                <div className="flex md:flex-row justify-end flex-col gap-4">
-                    <FilterLaboratory />
-                    <ReserveLogs
-                        reservations={reservations}
-                        isLoading={isLoading}
-                        error={error}
-                        isAdmin={true}
-                        canManage={true}
-                        onCancel={cancelBatch}
-                        cancellingBatchId={cancellingBatchId}
-                        cancelError={cancelError}
-                    />
-                </div>
-            </div>
+  const adminFilters = useMemo(
+    () => ({
+      buildings: [...selectedBuildings],
+      timeRange,
+    }),
+    [selectedBuildings, timeRange],
+  );
+
+  const { reservations, isLoading, error } = useAdminLogs(adminFilters);
+
+  return (
+    <div className="flex w-full">
+      <div className="flex flex-col gap-6 p-2 md:p-8 w-full">
+        <h1 className="text-3xl font-bold ml-4">Reservation Logs</h1>
+        <div className="flex md:flex-row justify-end flex-col gap-4">
+          <FilterLaboratory
+            buildings={buildings}
+            selectedBuildings={[...selectedBuildings]}
+            onToggleBuilding={toggleBuilding}
+            vacantOnly={false}
+            onToggleVacant={() => {}}
+            timeRange={timeRange}
+            onTimeRangeChange={updateTimeRange}
+            showVacantFilter={false}
+          />
+
+          <ReserveLogs
+            reservations={reservations}
+            isLoading={isLoading}
+            error={error}
+            canManage={false}
+            isAdmin={true}
+            onCancel={async () => false}
+            cancellingBatchId={null}
+            cancelError=""
+          />
         </div>
-    );
+      </div>
+    </div>
+  );
 }
