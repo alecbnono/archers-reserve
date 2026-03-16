@@ -1,28 +1,24 @@
+import { useMemo } from "react";
 import { useFilters } from "~/features/admin/hooks/useFilters";
 import { useAdminLogs } from "~/features/admin/hooks/useAdminLogs";
 import FilterLaboratory from "~/features/reserve/components/organism/FilterLaboratory";
 import ReserveLogs from "~/components/organisms/ReserveLogs";
 
-
-function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 export default function adminLogs() {
-  const { 
+  const {
     building: { buildings, selectedBuildings, toggleBuilding },
-    vacant: { showVacant, toggleShowVacant },
-    time: { timeRange, updateTimeRange }
+    time: { timeRange, updateTimeRange },
   } = useFilters();
 
-  const { reservations, isLoading, error } = useAdminLogs({
-    buildings: selectedBuildings ? [...selectedBuildings] : [],
-    timeRange,
-    showVacant,
-  });
+  const adminFilters = useMemo(
+    () => ({
+      buildings: [...selectedBuildings],
+      timeRange,
+    }),
+    [selectedBuildings, timeRange],
+  );
 
-  //TODO: reservations not showing in ReserveLogs
-  console.log(reservations);
+  const { reservations, isLoading, error } = useAdminLogs(adminFilters);
 
   return (
     <div className="flex w-full">
@@ -31,20 +27,24 @@ export default function adminLogs() {
         <div className="flex md:flex-row justify-end flex-col gap-4">
           <FilterLaboratory
             buildings={buildings}
-            selectedBuildings={selectedBuildings ? [...selectedBuildings] : []}
+            selectedBuildings={[...selectedBuildings]}
             onToggleBuilding={toggleBuilding}
-            vacantOnly={showVacant}
-            onToggleVacant={toggleShowVacant}
+            vacantOnly={false}
+            onToggleVacant={() => {}}
             timeRange={timeRange}
             onTimeRangeChange={updateTimeRange}
+            showVacantFilter={false}
           />
-          
+
           <ReserveLogs
             reservations={reservations}
             isLoading={isLoading}
             error={error}
-            canManage={true}
+            canManage={false}
             isAdmin={true}
+            onCancel={async () => false}
+            cancellingBatchId={null}
+            cancelError=""
           />
         </div>
       </div>

@@ -24,6 +24,7 @@ type FilterLaboratoryProps = {
     onToggleVacant: (checked: boolean) => void;
     timeRange: [number, number];
     onTimeRangeChange: (range: [number, number]) => void;
+    showVacantFilter?: boolean;
 };
 
 export default function FilterLaboratory({
@@ -34,6 +35,7 @@ export default function FilterLaboratory({
     onToggleVacant,
     timeRange,
     onTimeRangeChange,
+    showVacantFilter = true,
 }: FilterLaboratoryProps) {
     return (
         <>
@@ -49,19 +51,21 @@ export default function FilterLaboratory({
                     </SheetHeader>
                     <div className="px-4">
                         <FieldGroup className="mx-auto w-56">
-                            <div className="flex flex-col gap-2">
-                                <h2>General</h2>
-                                <Field orientation="horizontal">
-                                    <Checkbox
-                                        id="filter-vacant-mobile"
-                                        checked={vacantOnly}
-                                        onCheckedChange={(checked) => onToggleVacant(checked === true)}
-                                    />
-                                    <FieldLabel htmlFor="filter-vacant-mobile">
-                                        Filter Vacant
-                                    </FieldLabel>
-                                </Field>
-                            </div>
+                            {showVacantFilter && (
+                                <div className="flex flex-col gap-2">
+                                    <h2>General</h2>
+                                    <Field orientation="horizontal">
+                                        <Checkbox
+                                            id="filter-vacant-mobile"
+                                            checked={vacantOnly}
+                                            onCheckedChange={(checked) => onToggleVacant(checked === true)}
+                                        />
+                                        <FieldLabel htmlFor="filter-vacant-mobile">
+                                            Filter Vacant
+                                        </FieldLabel>
+                                    </Field>
+                                </div>
+                            )}
 
                             <TimeSlider
                                 timeRange={timeRange}
@@ -89,19 +93,21 @@ export default function FilterLaboratory({
                 </CardHeader>
                 <CardContent>
                     <FieldGroup className="mx-auto w-56">
-                        <div className="flex flex-col gap-2">
-                            <h2>General</h2>
-                            <Field orientation="horizontal">
-                                <Checkbox
-                                    id="filter-vacant-desktop"
-                                    checked={vacantOnly}
-                                    onCheckedChange={(checked) => onToggleVacant(checked === true)}
-                                />
-                                <FieldLabel htmlFor="filter-vacant-desktop">
-                                    Filter Vacant
-                                </FieldLabel>
-                            </Field>
-                        </div>
+                        {showVacantFilter && (
+                            <div className="flex flex-col gap-2">
+                                <h2>General</h2>
+                                <Field orientation="horizontal">
+                                    <Checkbox
+                                        id="filter-vacant-desktop"
+                                        checked={vacantOnly}
+                                        onCheckedChange={(checked) => onToggleVacant(checked === true)}
+                                    />
+                                    <FieldLabel htmlFor="filter-vacant-desktop">
+                                        Filter Vacant
+                                    </FieldLabel>
+                                </Field>
+                            </div>
+                        )}
 
                         <TimeSlider
                         timeRange={timeRange}

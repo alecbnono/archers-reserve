@@ -1,11 +1,9 @@
 import { useFilterBuilding } from "./useFilterBuilding";
 import { useFilterTime } from "./useFilterTime";
-import { useAdminLogFilters } from "./useFilterVacant";
 
 export function useFilters() {
   const buildingHook = useFilterBuilding();
   const timeHook = useFilterTime();
-  const vacantHook = useAdminLogFilters();
 
   const building = {
     buildings: buildingHook.buildings,
@@ -18,10 +16,5 @@ export function useFilters() {
     updateTimeRange: timeHook.updateTimeRange,
   };
 
-  const vacant = {
-    showVacant: vacantHook.showVacant,
-    toggleShowVacant: vacantHook.toggleShowVacant,
-  };
-
-  return { building, time, vacant };
+  return { building, time };
 }

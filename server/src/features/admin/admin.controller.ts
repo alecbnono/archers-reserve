@@ -11,25 +11,28 @@ export async function getDashboard(req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
+    const buildingParam = typeof req.query.building === "string" ? req.query.building : "";
+    const startTimeParam = typeof req.query.startTime === "string" ? req.query.startTime : undefined;
+    const endTimeParam = typeof req.query.endTime === "string" ? req.query.endTime : undefined;
+
     const filters = {
-      building: req.query.building as string,
-      startTime: req.query.startTime ? parseInt(req.query.startTime as string) : undefined,
-      endTime: req.query.endTime ? parseInt(req.query.endTime as string) : undefined,
-      showVacant: req.query.showVacant === 'true',
+      building: buildingParam,
+      startTime: startTimeParam ? parseInt(startTimeParam, 10) : undefined,
+      endTime: endTimeParam ? parseInt(endTimeParam, 10) : undefined,
     };
 
     const reservations = await adminService.getReservations();
 
     let filteredReservations = reservations;
 
-    const buildings = filters.building.split(',')
+    const buildings = filters.building ? filters.building.split(',') : [];
     if (filters.building) {
       filteredReservations = filteredReservations.filter(
         r => buildings.includes(r.building.toString())!
       );
     }    
 
-    if (filters.startTime && filters.endTime) {
+    if (filters.startTime !== undefined && filters.endTime !== undefined) {
       filteredReservations = filteredReservations.filter(r => {
         const timeSlots = unmergeTimeslotRanges(r.timeSlot || '');
         
@@ -37,7 +40,7 @@ export async function getDashboard(req: AuthRequest, res: Response): Promise<voi
           const slotStart = toMinutes(slot.startTime);
           const slotEnd = toMinutes(slot.endTime);
           
-          const overlaps = slotStart <= filters.endTime! && slotEnd >= filters.startTime!;
+          const overlaps = slotStart < filters.endTime! && slotEnd > filters.startTime!;
           return overlaps;
         });
       });

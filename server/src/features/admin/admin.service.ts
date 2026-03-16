@@ -42,8 +42,12 @@ export function unmergeTimeslotRanges(timeSlotString: string): { startTime: stri
 
 
 export function toMinutes(timeStr: string): number {
-  const [time, period] = timeStr.replace(/[:\s]/g, '').split(/(AM|PM)/);
-  let [hours, minutes] = time.split('').map(Number);
+  const trimmed = timeStr.trim();
+  const [time, period] = trimmed.split(" ");
+  const [hourPart, minutePart] = time.split(":");
+  let hours = parseInt(hourPart, 10);
+  const minutes = parseInt(minutePart, 10);
+
   if (period === 'PM' && hours !== 12) hours += 12;
   if (period === 'AM' && hours === 12) hours = 0;
   return hours * 60 + minutes;

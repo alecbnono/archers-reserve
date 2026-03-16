@@ -3,8 +3,6 @@ import { fetchAllReservations } from "../services/admin.services";
 import type { AdminLogFilters, UseAdminLogsReturn } from "../types/filter.types";
 import type { ReservationType } from "~/types/reservation.types";
 
-
-
 export function useAdminLogs(filters: AdminLogFilters): UseAdminLogsReturn {
   const [reservations, setReservations] = useState<ReservationType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -14,16 +12,21 @@ export function useAdminLogs(filters: AdminLogFilters): UseAdminLogsReturn {
     setIsLoading(true);
     setError("");
 
-    const result = await fetchAllReservations(filters);
+    try {
+      const result = await fetchAllReservations(filters);
 
-    if (result.error) {
-      setError(result.error);
+      if (result.error) {
+        setError(result.error);
+        setReservations([]);
+      } else {
+        setReservations(result.reservations || []);
+      }
+    } catch {
+      setError("Failed to fetch admin logs");
       setReservations([]);
-    } else {
-      setReservations(result.reservations || []);
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   }, [filters]);
 
   useEffect(() => {
@@ -31,7 +34,6 @@ export function useAdminLogs(filters: AdminLogFilters): UseAdminLogsReturn {
   }, [loadAdminLogs]);
 
   const refetch = useCallback(() => loadAdminLogs(), [loadAdminLogs]);
-  
 
   return {
     reservations,
