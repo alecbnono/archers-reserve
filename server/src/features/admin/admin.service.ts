@@ -17,7 +17,7 @@ interface ReservationLogRow {
 export async function getAllReservations(): Promise<ReservationLogRow[]>{
   const query = `
     SELECT * 
-    FROM reservation_log
+    FROM reservation
   `;
 
   const result = await pool.query(query);

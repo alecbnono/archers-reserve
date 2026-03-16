@@ -1,46 +1,24 @@
 import { useFilters } from "~/features/admin/hooks/useFilters";
-import { fetchAllReservations } from "~/features/admin/services/admin.services"; 
+import { useAdminLogs } from "~/features/admin/hooks/useAdminLogs";
 import FilterLaboratory from "~/features/reserve/components/organism/FilterLaboratory";
 import ReserveLogs from "~/components/organisms/ReserveLogs";
-import { useEffect, useState, useCallback } from "react";
-import type { ReservationType } from "~/types/reservation.types";
+import { convertToReservationTypes } from "~/features/admin/utils/admin.utils";
 
 export default function adminLogs() {
+  const filtersHook = useFilters();
   const { 
     building: { buildings, selectedBuilding, toggleBuilding },
     vacant: { showVacant, toggleShowVacant },
     time: { timeRange, updateTimeRange }
-  } = useFilters(); 
+  } = filtersHook;
 
-  const [reservations, setReservations] = useState<ReservationType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { reservations, isLoading, error } = useAdminLogs({
+    buildings: selectedBuilding ? [selectedBuilding] : [],
+    timeRange,
+    showVacant,
+  });
 
-  const loadAdminLogs = useCallback(async () => {
-    setIsLoading(true);
-    setError("");
-
-    const filters = {
-      buildings: selectedBuilding ? [selectedBuilding] : [],
-      timeRange,
-      showVacant,
-    };
-
-    const result = await fetchAllReservations(filters);
-
-    if (result.error) {
-      setError(result.error);
-      setReservations([]);
-    } else {
-      setReservations(result.reservations);
-    }
-
-    setIsLoading(false);
-  }, [selectedBuilding, timeRange, showVacant]);
-
-  useEffect(() => {
-    loadAdminLogs();
-  }, [loadAdminLogs]);
+  const formattedReservations = convertToReservationTypes(reservations);
 
   return (
     <div className="flex w-full">
@@ -58,7 +36,7 @@ export default function adminLogs() {
           />
           
           <ReserveLogs
-            reservations={reservations}
+            reservations={formattedReservations}
             isLoading={isLoading}
             error={error}
             canManage={true}
