@@ -24,7 +24,7 @@ export default function adminLogs() {
     <div className="flex w-full">
       <div className="flex flex-col gap-6 p-2 md:p-8 w-full">
         <h1 className="text-3xl font-bold ml-4">Reservation Logs</h1>
-        <div className="flex md:flex-row justify-end flex-col gap-4">
+        <div className="flex md:flex-row justify-start flex-col gap-4">
           <FilterLaboratory
             buildings={buildings}
             selectedBuildings={[...selectedBuildings]}
