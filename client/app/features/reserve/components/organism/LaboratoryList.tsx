@@ -117,41 +117,41 @@ export default function LaboratoryList() {
     *  Put in last as needed variables are defined in earlier functions.  
     */
     useEffect(() => {
-    const params = new URLSearchParams();
+        const params = new URLSearchParams();
 
-    selectedBuildings.forEach((b) => {
-        params.append("building", b);
-    });
-
-    if (vacantOnly) {
-        params.set("vacant", "true");
-        params.set("start_time", minutesToTimeString(timeRange[0]));
-        params.set("end_time", minutesToTimeString(timeRange[1]));
-        if (selectedDate) params.set("date", selectedDate);
-    }
-
-    const qs = params.toString();
-    const url = `/rooms${qs ? `?${qs}` : ""}`;
-
-    setIsLoading(true);
-    setError(null);
-
-    fetch(url, { credentials: "include" })
-        .then((res) => res.json())
-        .then((data) => {
-            setRooms(data.rooms || []);
-            setIsLoading(false);
-        })
-        .catch(() => {
-            setError("Could not load rooms");
-            setIsLoading(false);
+        selectedBuildings.forEach((b) => {
+            params.append("building", b);
         });
+
+        if (vacantOnly) {
+            params.set("vacant", "true");
+            params.set("start_time", minutesToTimeString(timeRange[0]));
+            params.set("end_time", minutesToTimeString(timeRange[1]));
+            if (selectedDate) params.set("date", selectedDate);
+        }
+
+        const qs = params.toString();
+        const url = `/rooms${qs ? `?${qs}` : ""}`;
+
+        setIsLoading(true);
+        setError(null);
+
+        fetch(url, { credentials: "include" })
+            .then((res) => res.json())
+            .then((data) => {
+                setRooms(data.rooms || []);
+                setIsLoading(false);
+            })
+            .catch(() => {
+                setError("Could not load rooms");
+                setIsLoading(false);
+            });
     }, [selectedBuildings, vacantOnly, timeRange, selectedDate]);
 
     const animationKey = `${selectedWeek}-${activeDayIndex}`;
 
     return (
-        <div className="flex flex-col gap-6 p-2 md:p-8">
+        <div className="flex flex-col gap-6 p-2 md:p-8 w-full">
             <h1 className="text-3xl font-bold ml-4">Reserve</h1>
             <div>
                 <Tabs
@@ -160,17 +160,25 @@ export default function LaboratoryList() {
                     className="flex flex-col gap-4"
                 >
                     <div className="flex flex-col gap-4 md:flex-row md:justify-between">
-                        <TabsList className="text-xs">
-                            {weekData?.days.map((day) => (
-                                <TabsTrigger
-                                    key={day.index}
-                                    className="text-xs md:text-sm"
-                                    value={day.index.toString()}
-                                    disabled={day.isPast}
-                                >
-                                    {day.label}
-                                </TabsTrigger>
-                            ))}
+                        <TabsList className="text-xs h-auto p-1">
+                            {weekData?.days.map((day) => {
+                                const parts = day.label.split(" ");
+                                const dayName = parts[0];
+                                const dateLabel = parts.slice(1).join(" ");
+                                return (
+                                    <TabsTrigger
+                                        key={day.index}
+                                        value={day.index.toString()}
+                                        disabled={day.isPast}
+                                        className="h-auto py-1 min-w-12 flex-col items-center leading-tight md:flex-row md:min-w-0 md:whitespace-nowrap"
+                                    >
+                                        <span className="whitespace-nowrap">{dayName}</span>
+                                        <span className="whitespace-nowrap text-[10px] md:text-xs">
+                                            {dateLabel}
+                                        </span>
+                                    </TabsTrigger>
+                                );
+                            })}
                         </TabsList>
                         <WeekSelection
                             weeks={weeks}
@@ -178,7 +186,15 @@ export default function LaboratoryList() {
                             onChange={handleWeekChange}
                         />
                     </div>
-                    <div className="flex md:flex-row-reverse justify-end flex-col gap-2">
+                    <div className="flex flex-col-reverse md:grid md:grid-cols-[1fr_auto] justify-end flex-col gap-2">
+                        <TabsContent
+                            key={animationKey}
+                            value={activeDayIndex.toString()}
+                            className="flex md:grid md:grid-cols-2 gap-2 flex-wrap w-full md:grid-cols-2"
+                            forceMount
+                        >
+                            {roomContent}
+                        </TabsContent>
                         <FilterLaboratory
                             buildings={buildings}
                             selectedBuildings={selectedBuildings}
@@ -188,15 +204,6 @@ export default function LaboratoryList() {
                             timeRange={timeRange}
                             onTimeRangeChange={setTimeRange}
                         />
-
-                        <TabsContent
-                            key={animationKey}
-                            value={activeDayIndex.toString()}
-                            className="flex gap-2 flex-wrap w-full"
-                            forceMount
-                        >
-                            {roomContent}
-                        </TabsContent>
                     </div>
                 </Tabs>
             </div>

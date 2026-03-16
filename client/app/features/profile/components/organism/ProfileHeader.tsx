@@ -97,14 +97,14 @@ export default function ProfileHeader() {
                         />
                     </div>
                     <div className="flex gap-8 items-center justify-between w-full">
-                        <div className="flex flex-col gap-2 ">
+                        <div className="flex flex-col gap-2 w-full">
                             <h1 className="text-3xl font-bold">{`${currentUser?.firstName} ${currentUser?.lastName}`}</h1>
                             {isEditing ? (
                                 <div className="flex flex-col gap-2">
                                     <textarea
                                         value={bioDraft}
                                         onChange={(e) => setBioDraft(e.target.value)}
-                                        maxLength={280}
+                                        maxLength={1000}
                                         rows={3}
                                         className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                         disabled={isSaving}

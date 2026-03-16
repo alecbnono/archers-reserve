@@ -13,6 +13,8 @@ export function useRegistrationForm() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const validationResult = validate(form);
   const errors = submitted
@@ -31,12 +33,17 @@ export function useRegistrationForm() {
     setForm((prev) => ({ ...prev, role: role as UserRole }));
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    e: React.FormEvent<HTMLFormElement>,
+  ): Promise<boolean> {
     e.preventDefault();
     setSubmitted(true);
     setServerError("");
+    setSuccessMessage("");
 
-    if (!allValid(validationResult)) return;
+    if (!allValid(validationResult)) return false;
+
+    setIsSubmitting(true);
 
     const payload: RegisterPayload = {
       firstName: form.firstName.trim(),
@@ -52,12 +59,17 @@ export function useRegistrationForm() {
 
       if (result.error) {
         setServerError(result.error);
-        return;
+        setIsSubmitting(false);
+        return false;
       }
 
-      return result.user;
+      setSuccessMessage("Account created successfully! Redirecting to login...");
+      setIsSubmitting(false);
+      return true;
     } catch {
       setServerError("Network error. Please try again.");
+      setIsSubmitting(false);
+      return false;
     }
   }
 
@@ -65,6 +77,8 @@ export function useRegistrationForm() {
     form,
     errors,
     serverError,
+    isSubmitting,
+    successMessage,
     handleChange,
     handleSubmit,
     setRole,

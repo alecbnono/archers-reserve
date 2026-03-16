@@ -104,8 +104,8 @@ export default function FilterLaboratory({
                         </div>
 
                         <TimeSlider
-                        timeRange={timeRange}
-                        onTimeRangeChange={onTimeRangeChange}
+                            timeRange={timeRange}
+                            onTimeRangeChange={onTimeRangeChange}
                         />
 
                         <BuildingFilter

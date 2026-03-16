@@ -19,7 +19,17 @@ interface RegistrationProps {
 
 export default function Registration({ setRegister, openLogin }: RegistrationProps) {
 
-    const { form, errors, serverError, handleChange, handleSubmit, setRole } = useRegistrationForm();
+    const { form, errors, serverError, isSubmitting, successMessage, handleChange, handleSubmit, setRole } = useRegistrationForm();
+
+    async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+        const success = await handleSubmit(e);
+        if (success) {
+            setTimeout(() => {
+                setRegister(false);
+                openLogin();
+            }, 1500);
+        }
+    }
 
     return (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-800/50 overflow-hidden animate-in fade-in duration-300"
@@ -36,7 +46,7 @@ export default function Registration({ setRegister, openLogin }: RegistrationPro
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={onSubmit}>
                         <div className="flex flex-col gap-4">
                             <Tabs
                                 defaultValue="STUDENT"
@@ -131,8 +141,11 @@ export default function Registration({ setRegister, openLogin }: RegistrationPro
                             </div>
 
                             {serverError && <p className="text-red-500 text-sm">{serverError}</p>}
+                            {successMessage && <p className="text-green-600 text-sm">{successMessage}</p>}
 
-                            <Button type="submit" className="text-white">Create Account</Button>
+                            <Button type="submit" className="text-white" disabled={isSubmitting || !!successMessage}>
+                                {isSubmitting ? "Creating account..." : "Create Account"}
+                            </Button>
 
                             <div className="flex gap-1 items-center">
                                 <p className="text-gray-500">Already have an account?  </p>
