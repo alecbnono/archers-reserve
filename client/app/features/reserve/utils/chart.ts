@@ -2,55 +2,33 @@ import type { ChartConfig } from "@/components/ui/chart";
 
 export const description = "A bar chart";
 
-// Placeholder chart data — will be replaced with real occupancy data later
-export const chartData = [
-    {
-        hour: "08:00",
-        q0: 12,
-        q1: 18,
-        q2: 10,
-        q3: 15,
-    },
-    {
-        hour: "10:00",
-        q0: 20,
-        q1: 14,
-        q2: 9,
-        q3: 11,
-    },
-    {
-        hour: "12:00",
-        q0: 12,
-        q1: 18,
-        q2: 10,
-        q3: 15,
-    },
-    {
-        hour: "14:00",
-        q0: 20,
-        q1: 14,
-        q2: 9,
-        q3: 11,
-    },
-    {
-        hour: "16:00",
-        q0: 12,
-        q1: 18,
-        q2: 10,
-        q3: 15,
-    },
-    {
-        hour: "18:00",
-        q0: 20,
-        q1: 14,
-        q2: 9,
-        q3: 11,
-    },
-];
+export interface OccupancyPoint {
+  timeslotId: number;
+  startTime: string;
+  endTime: string;
+  reservedCount: number;
+}
+
+export interface ChartDataPoint {
+  hour: string;   // "07:00"
+  first: number;  // :00–:30 count
+  second: number; // :30–:00 count
+}
+
+export function buildChartData(occupancy: OccupancyPoint[]): ChartDataPoint[] {
+  const hourMap = new Map<string, ChartDataPoint>();
+  for (const slot of occupancy) {
+    const [h, m] = slot.startTime.split(":"); 
+    const key = `${h}:00`;
+    if (!hourMap.has(key)) hourMap.set(key, { hour: key, first: 0, second: 0 });
+    const entry = hourMap.get(key)!;
+    if (m === "00") entry.first = slot.reservedCount;
+    else entry.second = slot.reservedCount;
+  }
+  return Array.from(hourMap.values());
+}
 
 export const chartConfig = {
-    q0: { label: "00–15", color: "var(--primary)" },
-    q1: { label: "15–30", color: "var(--primary)" },
-    q2: { label: "30–45", color: "var(--primary)" },
-    q3: { label: "45–60", color: "var(--primary)" },
+  first:  { label: ":00–:30", color: "var(--primary)" },
+  second: { label: ":30–:00", color: "var(--primary)" },
 } satisfies ChartConfig;
