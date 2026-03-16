@@ -1,6 +1,6 @@
 export type TimeSliderValue = [number, number];
 
-export type BuildingOption = ["St. La Salle Hall","John Gokongwei Sr. Hall", "St. Joseph Hall", "Urbano J. Velasco Hall"];
+export type BuildingOption = string; 
 
 export interface AdminLogFilters {
   buildings: BuildingOption[];

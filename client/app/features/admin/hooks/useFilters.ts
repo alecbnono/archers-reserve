@@ -1,29 +1,31 @@
-import { createContext, useContext } from "react";
-import { useFilterBuilding } from "~/features/reserve/hooks/useFilterBuilding";
-import { useFilterTime } from "~/features/reserve/hooks/useFilterTime";
-import { useAdminLogFilters } from "~/features/reserve/hooks/useFilterVacant";
-
-const FiltersContext = createContext<any>(null);
-
-export function FiltersProvider({ children }: { children: React.ReactNode }) {
-  const building = useFilterBuilding();
-  const time = useFilterTime();
-  const vacant = useAdminLogFilters();
-
-  const filters = {
-    building: building.selectedBuilding,
-    startTime: time.timeRange[0],
-    endTime: time.timeRange[1],
-    showVacant: vacant.showVacant,
-  };
-
-  return (
-    <FiltersContext.Provider value={{ filters, building, time, vacant }}>
-      {children}
-    </FiltersContext.Provider>
-  );
-}
+import { useFilterBuilding } from "./useFilterBuilding";
+import { useFilterTime } from "./useFilterTime";
+import { useAdminLogFilters } from "./useFilterVacant";
 
 export function useFilters() {
-  return useContext(FiltersContext);
+  const buildingHook = useFilterBuilding();
+  const timeHook = useFilterTime();
+  const vacantHook = useAdminLogFilters();
+
+  const building = {
+    buildings: buildingHook.buildings,
+    selectedBuilding: buildingHook.selectedBuilding,
+    toggleBuilding: buildingHook.toggleBuilding,
+  };
+
+  const time = {
+    timeRange: timeHook.timeRange,
+    updateTimeRange: timeHook.updateTimeRange,
+  };
+
+  const vacant = {
+    showVacant: vacantHook.showVacant,
+    toggleShowVacant: vacantHook.toggleShowVacant,
+  };
+
+  return {
+    building,
+    time,
+    vacant,
+  };
 }

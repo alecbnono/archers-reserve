@@ -1,13 +1,12 @@
 import { useState } from "react";
 import type { BuildingOption } from "../types/filter.types";
 
-const BUILDINGS = [
+const BUILDINGS: BuildingOption[] = [
   "St. La Salle Hall",
   "John Gokongwei Sr. Hall",
   "St. Joseph Hall",
   "Urbano J. Velasco Hall",
-] as const;
-
+];
 
 export function useFilterBuilding() {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingOption | null>(null);
