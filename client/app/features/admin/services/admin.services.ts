@@ -10,7 +10,7 @@ export async function fetchAdminDashboard(): Promise<{
   rooms?: any[];
   error?: string;
 }> {
-  const res = await fetch(`${BASE_URL}/dashboard`, {
+  const res = await fetch(`${BASE_URL}/dashboard/logs`, {
     credentials: "include",
   });
 
