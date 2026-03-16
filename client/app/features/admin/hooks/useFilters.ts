@@ -1,28 +1,29 @@
-import { useFilterBuilding } from "./useFilterBuilding";
-import { useFilterTime } from "./useFilterTime";
-import { useAdminLogFilters } from "./useFilterVacant";
+import { createContext, useContext } from "react";
+import { useFilterBuilding } from "~/features/reserve/hooks/useFilterBuilding";
+import { useFilterTime } from "~/features/reserve/hooks/useFilterTime";
+import { useAdminLogFilters } from "~/features/reserve/hooks/useFilterVacant";
 
-export function useFilters(){
+const FiltersContext = createContext<any>(null);
+
+export function FiltersProvider({ children }: { children: React.ReactNode }) {
   const building = useFilterBuilding();
   const time = useFilterTime();
   const vacant = useAdminLogFilters();
 
   const filters = {
-    building: building.selectedBuilding || undefined,
+    building: building.selectedBuilding,
     startTime: time.timeRange[0],
     endTime: time.timeRange[1],
     showVacant: vacant.showVacant,
   };
 
-  return {
-    building,
-    time,
-    vacant,
-    filters, 
-    clearAll: () => {
-      building.setSelectedBuilding(null);
-      time.resetTimeRange();
-      vacant.setShowVacant(false);
-    },
-  };
+  return (
+    <FiltersContext.Provider value={{ filters, building, time, vacant }}>
+      {children}
+    </FiltersContext.Provider>
+  );
+}
+
+export function useFilters() {
+  return useContext(FiltersContext);
 }
