@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LaboratoryCard from "../molecule/LaboratoryCard";
 import FilterLaboratory from "./FilterLaboratory";
 import WeekSelection from "../molecule/WeekSelection";
+import { minutesToTimeString } from "../../utils/reserve";
 import {
     getWeeksForYear,
     getCurrentWeekNumber,
@@ -18,6 +19,7 @@ export default function LaboratoryList() {
     const [vacantOnly, setVacantOnly] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [timeRange, setTimeRange] = useState<[number, number]>([420, 1080]); // 7:00–18:00
 
     useEffect(() => {
         fetch("/rooms/buildings", { credentials: "include" })
@@ -25,35 +27,6 @@ export default function LaboratoryList() {
             .then((data) => setBuildings(data.buildings || []))
             .catch(() => setError("Could not load buildings"));
     }, []);
-
-    useEffect(() => {
-        const params = new URLSearchParams();
-
-        selectedBuildings.forEach((b) => {
-            params.append("building", b);
-        });
-
-        if (vacantOnly) {
-            params.set("vacant", "true");
-        }
-
-        const qs = params.toString();
-        const url = `/rooms${qs ? `?${qs}` : ""}`;
-
-        setIsLoading(true);
-        setError(null);
-
-        fetch(url, { credentials: "include" })
-            .then((res) => res.json())
-            .then((data) => {
-                setRooms(data.rooms || []);
-                setIsLoading(false);
-            })
-            .catch(() => {
-                setError("Could not load rooms");
-                setIsLoading(false);
-            });
-    }, [selectedBuildings, vacantOnly]);
 
     const toggleBuilding = (b: string) =>
         setSelectedBuildings((prev) =>
@@ -140,6 +113,41 @@ export default function LaboratoryList() {
         ))
     );
 
+    /* Refetch rooms when filter or data changes
+    *  Put in last as needed variables are defined in earlier functions.  
+    */
+    useEffect(() => {
+    const params = new URLSearchParams();
+
+    selectedBuildings.forEach((b) => {
+        params.append("building", b);
+    });
+
+    if (vacantOnly) {
+        params.set("vacant", "true");
+        params.set("start_time", minutesToTimeString(timeRange[0]));
+        params.set("end_time", minutesToTimeString(timeRange[1]));
+        if (selectedDate) params.set("date", selectedDate);
+    }
+
+    const qs = params.toString();
+    const url = `/rooms${qs ? `?${qs}` : ""}`;
+
+    setIsLoading(true);
+    setError(null);
+
+    fetch(url, { credentials: "include" })
+        .then((res) => res.json())
+        .then((data) => {
+            setRooms(data.rooms || []);
+            setIsLoading(false);
+        })
+        .catch(() => {
+            setError("Could not load rooms");
+            setIsLoading(false);
+        });
+    }, [selectedBuildings, vacantOnly, timeRange, selectedDate]);
+
     const animationKey = `${selectedWeek}-${activeDayIndex}`;
 
     return (
@@ -177,6 +185,8 @@ export default function LaboratoryList() {
                             onToggleBuilding={toggleBuilding}
                             vacantOnly={vacantOnly}
                             onToggleVacant={setVacantOnly}
+                            timeRange={timeRange}
+                            onTimeRangeChange={setTimeRange}
                         />
 
                         <TabsContent

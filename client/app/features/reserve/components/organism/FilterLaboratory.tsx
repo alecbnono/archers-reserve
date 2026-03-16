@@ -22,6 +22,8 @@ type FilterLaboratoryProps = {
     onToggleBuilding: (building: string) => void;
     vacantOnly: boolean;
     onToggleVacant: (checked: boolean) => void;
+    timeRange: [number, number];
+    onTimeRangeChange: (range: [number, number]) => void;
 };
 
 export default function FilterLaboratory({
@@ -30,6 +32,8 @@ export default function FilterLaboratory({
     onToggleBuilding,
     vacantOnly,
     onToggleVacant,
+    timeRange,
+    onTimeRangeChange,
 }: FilterLaboratoryProps) {
     return (
         <>
@@ -59,7 +63,10 @@ export default function FilterLaboratory({
                                 </Field>
                             </div>
 
-                            <TimeSlider />
+                            <TimeSlider
+                                timeRange={timeRange}
+                                onTimeRangeChange={onTimeRangeChange}
+                            />
 
                             <BuildingFilter
                                 buildings={buildings}
@@ -96,7 +103,10 @@ export default function FilterLaboratory({
                             </Field>
                         </div>
 
-                        <TimeSlider />
+                        <TimeSlider
+                        timeRange={timeRange}
+                        onTimeRangeChange={onTimeRangeChange}
+                        />
 
                         <BuildingFilter
                             buildings={buildings}

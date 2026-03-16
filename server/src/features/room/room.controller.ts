@@ -11,28 +11,29 @@ export async function listRooms(req: Request, res: Response): Promise<void> {
   } else if (typeof q === "string") {
     buildings = [q];
   }
-    
+
   try {
     const vacant = req.query.vacant === "true";
-    const timeslotId = req.query.timeslot_id ? Number(req.query.timeslot_id) : undefined;
+    const startTime = typeof req.query.start_time === "string" ? req.query.start_time : undefined;
+    const endTime = typeof req.query.end_time === "string" ? req.query.end_time : undefined;
+    const date = typeof req.query.date === "string" ? req.query.date : undefined;
 
-    const rooms = await roomService.getRooms({ buildings, vacant, timeslotId });
+    const rooms = await roomService.getRooms({ buildings, vacant, startTime, endTime, date });
     res.status(200).json({ rooms });
   } catch (error: any) {
     if (error instanceof AppError) {
       res.status(error.status).json({ error: error.message });
       return;
     }
-
     res.status(500).json({ error: "Internal server error" });
   }
 }
 
 export async function listBuildings(_req: Request, res: Response): Promise<void> {
   try {
-    const buildings = await roomService.getBuildings(); // implement in room.service
+    const buildings = await roomService.getBuildings();
     res.status(200).json({ buildings });
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -40,7 +41,20 @@ export async function listBuildings(_req: Request, res: Response): Promise<void>
 export async function getRoomOccupancy(req: Request, res: Response): Promise<void> {
   const roomId = Number(req.params.roomId);
   const date = typeof req.query.date === "string" ? req.query.date : "";
-  if (!roomId || !date) { res.status(400).json({ error: "roomId and date required" }); return; }
-  const data = await roomService.getRoomOccupancy(roomId, date);
-  res.json(data);
+
+  if (!roomId || !date) {
+    res.status(400).json({ error: "roomId and date required" });
+    return;
+  }
+
+  try {
+    const data = await roomService.getRoomOccupancy(roomId, date);
+    res.status(200).json(data);
+  } catch (error: any) {
+    if (error instanceof AppError) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
+    res.status(500).json({ error: "Internal server error" });
+  }
 }

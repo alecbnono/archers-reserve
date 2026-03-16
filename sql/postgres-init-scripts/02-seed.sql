@@ -114,3 +114,29 @@ FROM seat s
 JOIN room r ON r.room_id = s.room_id
 CROSS JOIN timeslot t
 WHERE r.room_code = 'L212';
+
+-- Made to test if filters room with max capacity at given time range
+INSERT INTO reservation (
+user_id, seat_id, room_id, timeslot_id, request_date, is_anonymous, is_recurring
+)
+SELECT
+10002,
+s.seat_id,
+s.room_id,
+t.timeslot_id,
+DATE '2026-03-20',
+FALSE,
+FALSE
+FROM seat s
+JOIN room r ON r.room_id = s.room_id
+JOIN timeslot t ON TRUE
+LEFT JOIN reservation x
+ON x.room_id = s.room_id
+AND x.seat_id = s.seat_id
+AND x.timeslot_id = t.timeslot_id
+AND x.request_date = DATE '2026-03-20'
+AND x.cancelled_at IS NULL
+WHERE r.room_code = 'L229'
+AND t.start_time >= TIME '12:00:00'
+AND t.start_time < TIME '15:00:00'
+AND x.reservation_id IS NULL;

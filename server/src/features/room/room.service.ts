@@ -3,7 +3,9 @@ import pool from "../../app/db.js";
 export type RoomFilter = {
   buildings?: string[];
   vacant?: boolean;
-  timeslotId?: number; // or start/end times if you have timeslot table
+  startTime?: string;  // "HH:MM" e.g. "12:00"
+  endTime?: string;    // "HH:MM" e.g. "13:00"
+  date?: string;
 };
 
 export interface RoomRow {
@@ -57,39 +59,56 @@ export async function getAllRooms(): Promise<RoomRow[]> {
  * Get rooms filtered by selected buildings
  * If no buildings are provided, return all rooms
  */
-
 export async function getRooms(filter: RoomFilter = {}): Promise<RoomRow[]> {
-  const { buildings, vacant, timeslotId } = filter;
-
+  const { buildings, vacant, startTime, endTime, date } = filter;
   const values: Array<string | number | string[]> = [];
   const conditions: string[] = [];
+
+  let dateCondition = "";
+  if (date) {
+    values.push(date);
+    const dateParam = values.length;
+    dateCondition = `AND res.request_date = $${dateParam}::date`;
+  }
 
   if (buildings && buildings.length > 0) {
     values.push(buildings);
     conditions.push(`r.building = ANY($${values.length})`);
   }
 
-  const vacancyJoin = `
-    LEFT JOIN (
-      SELECT room_id, COUNT(*) AS reserved_count
-      FROM reservation
-      ${typeof timeslotId === "number" ? `WHERE timeslot_id = $${values.length + 1}` : ""}
-      GROUP BY room_id
-    ) AS reserved ON reserved.room_id = r.room_id
-  `;
-
-  if (typeof timeslotId === "number") {
-    values.push(timeslotId);
+  let timeslotCondition = "";
+  if (startTime && endTime) {
+    values.push(startTime);
+    const startParam = values.length;
+    values.push(endTime);
+    const endParam = values.length;
+    timeslotCondition = `AND t.start_time >= $${startParam}::time AND t.start_time < $${endParam}::time`;
   }
 
+    const vacancyLateral = `
+      LEFT JOIN LATERAL (
+        SELECT 1
+        FROM timeslot t
+        LEFT JOIN reservation res
+          ON res.room_id = r.room_id
+          AND res.timeslot_id = t.timeslot_id
+          AND res.cancelled_at IS NULL
+          ${dateCondition}
+        WHERE 1=1 ${timeslotCondition}
+        GROUP BY t.timeslot_id
+        HAVING COUNT(res.reservation_id) < r.capacity
+        LIMIT 1
+      ) AS has_vacancy ON TRUE
+    `;
+
   if (vacant) {
-    conditions.push(`COALESCE(reserved.reserved_count, 0) < r.capacity`);
+    conditions.push(`has_vacancy IS NOT NULL`);
   }
 
   let query = `
     SELECT r.room_id, r.room_code, r.building, r.floor, r.capacity
     FROM room r
-    ${vacancyJoin}
+    ${vacancyLateral}
   `;
   if (conditions.length > 0) {
     query += " WHERE " + conditions.join(" AND ");
