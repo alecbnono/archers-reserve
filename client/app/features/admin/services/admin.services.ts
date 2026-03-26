@@ -18,6 +18,9 @@ export async function fetchAllReservations(filters?: AdminLogFilters): Promise<{
       params.append("startTime", filters.timeRange[0].toString());
       params.append("endTime", filters.timeRange[1].toString());
     }
+    if (filters.selectedUserId !== undefined && filters.selectedUserId !== null) {
+      params.append("userId", String(filters.selectedUserId));
+    }
   }
 
   const url = `${BASE_URL}/dashboard${params.toString() ? `?${params.toString()}` : ""}`;
