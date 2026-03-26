@@ -22,6 +22,8 @@ import { FaArrowRight } from "react-icons/fa";
 import { Link } from "react-router";
 
 import type { RoomProp } from "~/types/labs.types";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 import {
     buildChartData,
     chartConfig,
@@ -43,7 +45,7 @@ function LaboratoryCard({ room, selectedDate, isRecurring, selectedWeekday }: Ro
             return;
         }
         if (!room.roomId || !selectedDate) return;
-        fetch(`/rooms/${room.roomId}/occupancy?date=${selectedDate}`)
+        fetch(`${API_URL}/rooms/${room.roomId}/occupancy?date=${selectedDate}`)
             .then(res => res.json())
             .then((data: OccupancyPoint[]) => setOccupancyData(buildChartData(data)));
     }, [room.roomId, selectedDate, isRecurring]);
