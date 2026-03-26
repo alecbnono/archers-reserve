@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuthStore } from "~/store/user.store";
+import type { SeatOccupantPreview } from "~/features/reserve/types/reserve.types";
 
 interface SeatSelectionProps {
     totalSeats: number;
@@ -13,6 +14,8 @@ interface SeatSelectionProps {
     reserveAll: boolean;
     isAnonymous: boolean;
     occupiedSeatIds: number[];
+    seatOccupantPreviews: Map<number, SeatOccupantPreview>;
+    forceReserveAll?: boolean;
     onSeatSelect: (seat: number | null) => void;
     onReserveAllChange: (value: boolean) => void;
     onAnonymousChange: (value: boolean) => void;
@@ -24,6 +27,8 @@ export default function SeatSelection({
     reserveAll,
     isAnonymous,
     occupiedSeatIds,
+    seatOccupantPreviews,
+    forceReserveAll = false,
     onSeatSelect,
     onReserveAllChange,
     onAnonymousChange,
@@ -54,8 +59,9 @@ export default function SeatSelection({
                         <SeatBox
                             key={seat}
                             seatNumber={seat}
-                            checked={reserveAll || selectedSeat === seat}
-                            disabled={reserveAll || occupiedSeatIds.includes(seat)}
+                            checked={forceReserveAll || reserveAll || selectedSeat === seat}
+                            disabled={forceReserveAll || reserveAll || occupiedSeatIds.includes(seat)}
+                            occupantPreview={seatOccupantPreviews.get(seat)}
                             onSelect={handleSeatSelect}
                         />
                     ))}
@@ -69,7 +75,8 @@ export default function SeatSelection({
                             <p className="text-sm">Reserve all?</p>
                             <Checkbox
                                 className="size-6 bg-white"
-                                checked={reserveAll}
+                                checked={forceReserveAll || reserveAll}
+                                disabled={forceReserveAll}
                                 onCheckedChange={handleReserveAllChange}
                             />
                         </div>

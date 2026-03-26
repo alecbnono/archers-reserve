@@ -13,7 +13,6 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
-import { useState } from "react";
 import { useAuthStore } from "~/store/user.store";
 import type { WeekOption } from "~/features/reserve/utils/date";
 
@@ -21,12 +20,12 @@ type WeekSelectionProps = {
     weeks: WeekOption[];
     value: number;
     onChange: (weekNumber: number) => void;
+    isRecurring: boolean;
+    onRecurringChange: (value: boolean) => void;
 };
 
-export default function WeekSelection({ weeks, value, onChange }: WeekSelectionProps) {
+export default function WeekSelection({ weeks, value, onChange, isRecurring, onRecurringChange }: WeekSelectionProps) {
     const currentUser = useAuthStore((state) => state.currentUser);
-
-    const [checked, setChecked] = useState(false);
 
     return (
         <div className="flex gap-2 px-2">
@@ -35,9 +34,9 @@ export default function WeekSelection({ weeks, value, onChange }: WeekSelectionP
                     <Checkbox
                         id="terms-checkbox-basic"
                         name="terms-checkbox-basic"
-                        checked={checked}
+                        checked={isRecurring}
                         onCheckedChange={(value) => {
-                            setChecked(!!value);
+                            onRecurringChange(!!value);
                         }}
                     />
                     <FieldLabel htmlFor="terms-checkbox-basic">Recurring?</FieldLabel>
@@ -46,7 +45,7 @@ export default function WeekSelection({ weeks, value, onChange }: WeekSelectionP
                 <></>
             )}
             <Select
-                disabled={checked}
+                disabled={isRecurring}
                 value={value.toString()}
                 onValueChange={(v) => onChange(Number(v))}
             >

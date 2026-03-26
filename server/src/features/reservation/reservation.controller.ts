@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import type { AuthRequest } from "../../types/auth.types.js";
 import * as reservationService from "./reservation.service.js";
+import * as profileService from "../profile/profile.service.js";
 
 /**
  * POST /reservations — create reservation(s).
@@ -15,7 +16,7 @@ export async function createReservation(
   res: Response,
 ): Promise<void> {
   try {
-    const { roomId, date, timeslotIds, seatId, reserveAll, isAnonymous, targetUserId } =
+    const { roomId, date, timeslotIds, seatId, reserveAll, isAnonymous, targetUserId, isRecurring } =
       req.body;
 
     // --- Basic validation ---
@@ -55,6 +56,27 @@ export async function createReservation(
       return;
     }
 
+    // --- Recurring validation: only non-STUDENT can use recurring ---
+    if (isRecurring != null && typeof isRecurring !== "boolean") {
+      res.status(400).json({ error: "isRecurring must be a boolean" });
+      return;
+    }
+
+    if (isRecurring && req.user!.role === "STUDENT") {
+      res.status(403).json({ error: "Students cannot create recurring reservations" });
+      return;
+    }
+
+    if (isRecurring && !reserveAll) {
+      res.status(400).json({ error: "Recurring reservations must reserve all seats" });
+      return;
+    }
+
+    if (isRecurring && seatId != null) {
+      res.status(400).json({ error: "Recurring reservations cannot specify a single seat" });
+      return;
+    }
+
     // --- Admin on-behalf validation ---
     const actorRole = req.user!.role;
 
@@ -77,6 +99,7 @@ export async function createReservation(
       seatId: reserveAll ? null : seatId,
       reserveAll,
       isAnonymous: isAnonymous === true,
+      isRecurring: isRecurring === true,
       targetUserId: actorRole === "ADMIN" ? targetUserId : undefined,
     });
 
@@ -103,6 +126,46 @@ export async function getMyReservations(
     const reservations = await reservationService.getUserReservations(
       req.user!.id,
     );
+    res.status(200).json({ reservations });
+  } catch (error: any) {
+    res
+      .status(error.status || 500)
+      .json({ error: error.message || "Internal server error" });
+  }
+}
+
+/**
+ * GET /reservations/user/:userId — reservations for a specific user (public profile).
+ * Privacy: profile must be public, or requester is self/admin.
+ * Anonymous reservation batches are excluded for non-self/non-admin viewers.
+ */
+export async function getUserReservations(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
+  try {
+    const targetUserId = Number(req.params.userId);
+    if (!targetUserId || isNaN(targetUserId) || targetUserId <= 0) {
+      res.status(400).json({ error: "Valid userId is required" });
+      return;
+    }
+
+    // This call also enforces the privacy check (throws 403 if private)
+    await profileService.getPublicProfile(
+      targetUserId,
+      req.user!.id,
+      req.user!.role,
+    );
+
+    let reservations = await reservationService.getUserReservations(targetUserId);
+
+    // Hide anonymous batches from non-self/non-admin viewers
+    const isSelf = req.user!.id === targetUserId;
+    const isAdmin = req.user!.role === "ADMIN";
+    if (!isSelf && !isAdmin) {
+      reservations = reservations.filter((r) => !r.isAnonymous);
+    }
+
     res.status(200).json({ reservations });
   } catch (error: any) {
     res
@@ -246,7 +309,7 @@ export async function editReservationBatch(
       return;
     }
 
-    const { roomId, date, timeslotIds, seatId, reserveAll, isAnonymous } =
+    const { roomId, date, timeslotIds, seatId, reserveAll, isAnonymous, isRecurring } =
       req.body;
 
     // --- Basic validation (same as create) ---
@@ -285,6 +348,27 @@ export async function editReservationBatch(
       return;
     }
 
+    // --- Recurring validation ---
+    if (isRecurring != null && typeof isRecurring !== "boolean") {
+      res.status(400).json({ error: "isRecurring must be a boolean" });
+      return;
+    }
+
+    if (isRecurring && req.user!.role === "STUDENT") {
+      res.status(403).json({ error: "Students cannot create recurring reservations" });
+      return;
+    }
+
+    if (isRecurring && !reserveAll) {
+      res.status(400).json({ error: "Recurring reservations must reserve all seats" });
+      return;
+    }
+
+    if (isRecurring && seatId != null) {
+      res.status(400).json({ error: "Recurring reservations cannot specify a single seat" });
+      return;
+    }
+
     const result = await reservationService.editReservationBatch({
       batchId,
       actorUserId: req.user!.id,
@@ -295,6 +379,7 @@ export async function editReservationBatch(
       seatId: reserveAll ? null : seatId,
       reserveAll,
       isAnonymous: isAnonymous === true,
+      isRecurring: isRecurring === true,
     });
 
     res.status(200).json({
@@ -302,6 +387,92 @@ export async function editReservationBatch(
       updatedCount: result.updatedCount,
       overriddenCount: result.overriddenCount,
     });
+  } catch (error: any) {
+    res
+      .status(error.status || 500)
+      .json({ error: error.message || "Internal server error" });
+  }
+}
+
+/**
+ * POST /reservations/recurring-conflicts — check if FACULTY/ADMIN conflicts exist
+ * across a recurring date series. Lightweight, read-only.
+ * Body: { roomId, date, timeslotIds, seatId?, reserveAll }
+ */
+export async function checkRecurringConflicts(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
+  try {
+    const { roomId, date, timeslotIds, seatId, reserveAll } = req.body;
+
+    if (!roomId || typeof roomId !== "number" || roomId <= 0) {
+      res.status(400).json({ error: "Valid roomId is required" });
+      return;
+    }
+
+    if (!date || typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      res.status(400).json({ error: "Valid date (YYYY-MM-DD) is required" });
+      return;
+    }
+
+    if (
+      !Array.isArray(timeslotIds) ||
+      timeslotIds.length === 0 ||
+      !timeslotIds.every((id: any) => typeof id === "number" && id > 0)
+    ) {
+      res
+        .status(400)
+        .json({ error: "timeslotIds must be a non-empty array of positive integers" });
+      return;
+    }
+
+    if (typeof reserveAll !== "boolean") {
+      res.status(400).json({ error: "reserveAll must be a boolean" });
+      return;
+    }
+
+    // Recurring conflict checks must always use reserveAll
+    if (!reserveAll) {
+      res.status(400).json({ error: "Recurring conflict check requires reserveAll to be true" });
+      return;
+    }
+
+    if (seatId != null) {
+      res.status(400).json({ error: "Recurring conflict check cannot specify a single seat" });
+      return;
+    }
+
+    // Resolve seat IDs — if reserveAll, query the room's seat count
+    let seatIds: number[];
+    if (reserveAll) {
+      const roomResult = await import("../../app/db.js").then((mod) =>
+        mod.default.query("SELECT capacity FROM room WHERE room_id = $1", [roomId]),
+      );
+      if (roomResult.rows.length === 0) {
+        res.status(404).json({ error: "Room not found" });
+        return;
+      }
+      const capacity = roomResult.rows[0].capacity;
+      seatIds = Array.from({ length: capacity }, (_, i) => i + 1);
+    } else {
+      if (seatId == null || typeof seatId !== "number" || seatId <= 0) {
+        res
+          .status(400)
+          .json({ error: "Valid seatId is required when reserveAll is false" });
+        return;
+      }
+      seatIds = [seatId];
+    }
+
+    const result = await reservationService.checkRecurringConflicts({
+      roomId,
+      date,
+      timeslotIds,
+      seatIds,
+    });
+
+    res.status(200).json(result);
   } catch (error: any) {
     res
       .status(error.status || 500)

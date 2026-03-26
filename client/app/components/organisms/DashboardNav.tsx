@@ -1,4 +1,4 @@
-import { FaBook } from "react-icons/fa";
+import { FaBook, FaUsers } from "react-icons/fa";
 import { LuScreenShare } from "react-icons/lu";
 import { FaUserLarge } from "react-icons/fa6";
 import { LuScroll } from "react-icons/lu";
@@ -54,6 +54,17 @@ export default function DashboardNav() {
                             </Button>
                         )}
                     </NavLink>
+                    <NavLink to="dashboard/users" className="w-full">
+                        {({ isActive }) => (
+                            <Button
+                                variant={isActive ? "default" : "outline"}
+                                className="justify-start py-5 w-full gap-3"
+                            >
+                                <FaUsers />
+                                Users
+                            </Button>
+                        )}
+                    </NavLink>
                     {currentUser?.role === "ADMIN" ? (
                         <NavLink to="dashboard/logs" className="w-full">
                             {({ isActive }) => (
@@ -104,6 +115,17 @@ export default function DashboardNav() {
                                     >
                                         <FaBook />
                                         Reserve
+                                    </Button>
+                                )}
+                            </NavLink>
+                            <NavLink to="dashboard/users" className="w-full">
+                                {({ isActive }) => (
+                                    <Button
+                                        variant={isActive ? "default" : "outline"}
+                                        className="justify-start py-5 w-full gap-3"
+                                    >
+                                        <FaUsers />
+                                        Users
                                     </Button>
                                 )}
                             </NavLink>
