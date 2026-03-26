@@ -76,6 +76,56 @@ export async function getPublicProfile(
   };
 }
 
+// ─── User search (public directory) ───────────────────────────────────
+
+export interface UserSearchEntry {
+  id: number;
+  username: string;
+  firstName: string;
+  lastName: string;
+  profilePictureUrl: string;
+  role: string;
+}
+
+/**
+ * Search users by username, first name, or last name (ILIKE).
+ * Non-admin callers only see users with is_public = true.
+ * Admin callers see all users.
+ * Returns at most 20 results, ordered by username.
+ */
+export async function searchPublicUsers(
+  query: string,
+  requesterRole: string,
+): Promise<UserSearchEntry[]> {
+  const pattern = `%${query}%`;
+
+  const isAdmin = requesterRole === "ADMIN";
+
+  const result = await pool.query(
+    `SELECT user_id, username, first_name, last_name,
+            profile_picture_url, role
+     FROM "user"
+     WHERE (
+       username    ILIKE $1
+       OR first_name ILIKE $1
+       OR last_name  ILIKE $1
+     )
+     ${isAdmin ? "" : "AND is_public = true"}
+     ORDER BY username
+     LIMIT 20`,
+    [pattern],
+  );
+
+  return result.rows.map((r: any) => ({
+    id: r.user_id,
+    username: r.username,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    profilePictureUrl: r.profile_picture_url,
+    role: r.role,
+  }));
+}
+
 /**
  * Update the user's profile_picture_url and return the updated user.
  * If the user already has a local upload, delete the old file.
