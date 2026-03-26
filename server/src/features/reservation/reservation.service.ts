@@ -19,16 +19,17 @@ export interface ReservationRow {
   requestTime: string;
   reservationDate: string;
   reservationDateEnd: string | null;  // non-null for recurring batches
-  timeSlot: string;            // merged 12-hour range string
+  timeSlot: string;
   building: string;
   roomId: number;
   roomCode: string;
-  seatLabel: string;           // "ALL" or single seat number
+  seatLabel: string;
   isAnonymous: boolean;
   isRecurring: boolean;
   status: ReservationStatus;
   cancelledAt: string | null;
-  // Admin-only fields (populated when fetching all)
+  // Admin-only fields
+  userId?: number;          
   firstName?: string;
   lastName?: string;
   email?: string;
@@ -199,6 +200,7 @@ interface GroupedRawRow {
   end_times: string[];      // ARRAY_AGG(end_time ORDER BY start_time)
   statuses: string[];       // ARRAY_AGG(per-row status)
   // admin only
+  user_id?: number;
   first_name?: string;
   last_name?: string;
   email?: string;
@@ -248,7 +250,9 @@ function mapGroupedRow(row: GroupedRawRow): ReservationRow {
     status: deriveGroupStatus(row.statuses),
     cancelledAt: row.cancelled_at ?? null,
   };
-
+  if (row.user_id !== undefined) {
+    mapped.userId = row.user_id;
+  }
   if (row.first_name !== undefined) {
     mapped.firstName = row.first_name;
     mapped.lastName = row.last_name;
@@ -355,10 +359,11 @@ export async function getAllReservations(): Promise<ReservationRow[]> {
     ${BATCH_FILTER_CTE}
     SELECT
       ${GROUPED_SELECT_COLUMNS},
+      MIN(u.user_id)    AS user_id,  
       MIN(u.first_name) AS first_name,
       MIN(u.last_name)  AS last_name,
       MIN(u.email)      AS email,
-      MIN(u.role)        AS role
+      MIN(u.role)       AS role
     FROM filtered f
     JOIN timeslot t  ON t.timeslot_id = f.timeslot_id
     JOIN room     rm ON rm.room_id    = f.room_id

@@ -3,6 +3,7 @@ import { Button } from "~/components/ui/button";
 import type { SearchableUser } from "~/features/reserve/services/adminUserSearch.service";
 
 interface AdminUserSearchProps {
+  label?: string;
   query: string;
   results: SearchableUser[];
   isSearching: boolean;
@@ -15,6 +16,7 @@ interface AdminUserSearchProps {
 }
 
 export default function AdminUserSearch({
+  label = "Reserve for user",
   query,
   results,
   isSearching,
@@ -27,7 +29,7 @@ export default function AdminUserSearch({
 }: AdminUserSearchProps) {
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-sm font-medium">Reserve for user</label>
+      <label className="text-sm font-medium">{label}</label>
 
       {selectedUser ? (
         <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
@@ -84,7 +86,7 @@ export default function AdminUserSearch({
                       {user.firstName} {user.lastName}
                     </span>
                     <span className="text-muted-foreground ml-2">
-                      @{user.username} &middot; {user.role}
+                      @{user.username} &middot; {user.email} &middot; {user.role}
                     </span>
                   </button>
                 ))

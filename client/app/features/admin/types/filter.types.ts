@@ -7,6 +7,7 @@ export type BuildingOption = string;
 export interface AdminLogFilters {
   buildings: BuildingOption[];
   timeRange: TimeSliderValue;
+  selectedUserId?: number;
 }
 
 export interface UseAdminLogsReturn {

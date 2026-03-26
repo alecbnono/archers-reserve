@@ -197,7 +197,7 @@ export default function LaboratoryList() {
                             onRecurringChange={setIsRecurring}
                         />
                     </div>
-                    <div className="flex flex-col-reverse md:grid md:grid-cols-[1fr_auto] justify-end flex-col gap-2">
+                    <div className="flex flex-col-reverse md:grid md:grid-cols-[1fr_auto] md:items-start justify-end gap-2">
                         <TabsContent
                             key={animationKey}
                             value={activeDayIndex.toString()}

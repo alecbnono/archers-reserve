@@ -14,11 +14,26 @@ export async function getDashboard(req: AuthRequest, res: Response): Promise<voi
     const buildingParam = typeof req.query.building === "string" ? req.query.building : "";
     const startTimeParam = typeof req.query.startTime === "string" ? req.query.startTime : undefined;
     const endTimeParam = typeof req.query.endTime === "string" ? req.query.endTime : undefined;
+    const userIdParam = typeof req.query.userId === "string" ? req.query.userId : undefined;
+
+    let parsedUserId: number | undefined = undefined;
+
+    if (userIdParam) {
+      const userId = parseInt(userIdParam, 10);
+
+      if (Number.isNaN(userId) || userId <= 0) {
+        res.status(400).json({ error: "Invalid userId" });
+        return;
+      }
+
+      parsedUserId = userId;
+    }
 
     const filters = {
       building: buildingParam,
       startTime: startTimeParam ? parseInt(startTimeParam, 10) : undefined,
       endTime: endTimeParam ? parseInt(endTimeParam, 10) : undefined,
+      userId: parsedUserId,
     };
 
     const reservations = await adminService.getReservations();
@@ -44,6 +59,12 @@ export async function getDashboard(req: AuthRequest, res: Response): Promise<voi
           return overlaps;
         });
       });
+    }
+
+    if (filters.userId !== undefined) {
+      filteredReservations = filteredReservations.filter(
+        (r) => r.userId === filters.userId
+      );
     }
 
     res.json({ 
