@@ -1,15 +1,25 @@
 export default {
-    preset: 'ts-jest',
-    testEnvironment: 'jsdom',
-    testMatch: ['**/*.test.ts', '**/*.test.tsx'],
+    preset: 'ts-jest/presets/default-esm',
+    testEnvironment: 'jest-environment-jsdom',
+    extensionsToTreatAsEsm: ['.ts', '.tsx'], 
     moduleNameMapper: {
-        // This handles CSS/Asset imports which break Jest
+        '^(\\.{1,2}/.*)\\.js$': '$1', 
+        '^~/(.*)$': '<rootDir>/app/$1',
+        '^@/(.*)$': '<rootDir>/app/$1',
         '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
-        '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$': '<rootDir>/__mocks__/fileMock.js',
+    },
+    transform: {
+        '^.+\\.tsx?$': [
+            'ts-jest',
+            {
+                useESM: true,
+                tsconfig: 'tsconfig.json', 
+            },
+        ],
     },
     reporters: [
         "default",
-        ["jest-html-reporter", { // Simplified path
+        ["jest-html-reporter", { 
             pageTitle: "Client Side Test Report",
             includeFailureMsg: true,
             includeConsoleLog: true,
@@ -17,4 +27,3 @@ export default {
         }]
     ],
 };
-// TODO: finish setup for client side jest
