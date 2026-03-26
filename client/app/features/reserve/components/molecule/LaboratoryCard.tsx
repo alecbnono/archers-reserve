@@ -4,86 +4,52 @@ import {
     CartesianGrid,
     XAxis,
     YAxis,
-    ResponsiveContainer,
 } from "recharts";
 
 import {
     Card,
     CardContent,
-    CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
+    CardDescription,
 } from "@/components/ui/card";
 import {
     ChartContainer,
-    ChartTooltip,
-    ChartTooltipContent,
-    type ChartConfig,
 } from "@/components/ui/chart";
 
+import { memo, useEffect, useState } from "react";
 import { FaArrowRight } from "react-icons/fa";
 import { Link } from "react-router";
 
-import type { LabProp, LabType } from "~/types/labs.types";
+import type { RoomProp } from "~/types/labs.types";
+import {
+    buildChartData,
+    chartConfig,
+    type ChartDataPoint,
+    type OccupancyPoint,
+} from "../../utils/chart";
 
-export const description = "A bar chart";
+function LaboratoryCard({ room, selectedDate, isRecurring, selectedWeekday }: RoomProp) {
+    // In recurring mode, pass weekday instead of date
+    const dateParam = !isRecurring && selectedDate ? `&date=${selectedDate}` : "";
+    const recurringParam = isRecurring && selectedWeekday != null ? `&recurring=true&weekday=${selectedWeekday}` : "";
 
-const chartData = [
-    {
-        hour: "08:00",
-        q0: 12, // 00–15
-        q1: 18, // 15–30
-        q2: 10, // 30–45
-        q3: 15, // 45–60
-    },
-    {
-        hour: "10:00",
-        q0: 20,
-        q1: 14,
-        q2: 9,
-        q3: 11,
-    },
-    {
-        hour: "12:00",
-        q0: 12, // 00–15
-        q1: 18, // 15–30
-        q2: 10, // 30–45
-        q3: 15, // 45–60
-    },
-    {
-        hour: "14:00",
-        q0: 20,
-        q1: 14,
-        q2: 9,
-        q3: 11,
-    },
-    {
-        hour: "16:00",
-        q0: 12, // 00–15
-        q1: 18, // 15–30
-        q2: 10, // 30–45
-        q3: 15, // 45–60
-    },
-    {
-        hour: "18:00",
-        q0: 20,
-        q1: 14,
-        q2: 9,
-        q3: 11,
-    },
-];
+    const [occupancyData, setOccupancyData] = useState<ChartDataPoint[]>([]);
 
-const chartConfig = {
-    q0: { label: "00–15", color: "var(--primary)" },
-    q1: { label: "15–30", color: "var(--primary)" },
-    q2: { label: "30–45", color: "var(--primary)" },
-    q3: { label: "45–60", color: "var(--primary)" },
-} satisfies ChartConfig;
+    useEffect(() => {
+        // Skip occupancy fetch in recurring mode (no specific date to show)
+        if (isRecurring) {
+            setOccupancyData([]);
+            return;
+        }
+        if (!room.roomId || !selectedDate) return;
+        fetch(`/rooms/${room.roomId}/occupancy?date=${selectedDate}`)
+            .then(res => res.json())
+            .then((data: OccupancyPoint[]) => setOccupancyData(buildChartData(data)));
+    }, [room.roomId, selectedDate, isRecurring]);
 
-export default function LaboratoryCard({ lab }: LabProp) {
     return (
-        <Link to="confirm" className="grow">
+        <Link to={`confirm?roomId=${room.roomId}${dateParam}${recurringParam}`} className="grow">
             <Card className="grow">
                 <CardHeader className="flex justify-between">
                     <div className="flex items-start gap-2">
@@ -91,8 +57,8 @@ export default function LaboratoryCard({ lab }: LabProp) {
                             <img src="/hero.jpg" alt="" className="rounded-xl size-16" />
                         </div>
                         <div className="flex flex-col pt-1 gap-1">
-                            <CardTitle>Room {lab.roomNumber}</CardTitle>
-                            <CardDescription>{lab.building} Hall</CardDescription>
+                            <CardTitle>{room.roomCode}</CardTitle>
+                            <CardDescription>{room.building}</CardDescription>
                         </div>
                     </div>
                     <FaArrowRight />
@@ -100,7 +66,7 @@ export default function LaboratoryCard({ lab }: LabProp) {
                 <CardContent>
                     <div className="flex flex-col items-center h-32 md:w-96">
                         <ChartContainer config={chartConfig} className="h-32 w-full">
-                            <BarChart data={chartData} barCategoryGap={0} barGap={0}>
+                            <BarChart data={occupancyData} barCategoryGap={0} barGap={0}>
                                 <CartesianGrid vertical={false} />
                                 <XAxis
                                     dataKey="hour"
@@ -109,31 +75,21 @@ export default function LaboratoryCard({ lab }: LabProp) {
                                     fontSize={12}
                                 />
                                 <YAxis
-                                    domain={[0, 20]} // choose a constant max
+                                    domain={[0, room.capacity ?? "auto"]}
                                 />
                                 <Bar
-                                    dataKey="q0"
+                                    dataKey="first"
                                     radius={6}
                                     maxBarSize={8}
-                                    fill="var(--color-q0)"
+                                    fill="var(--color-first)"
+                                    isAnimationActive={false}
                                 />
                                 <Bar
-                                    dataKey="q1"
+                                    dataKey="second"
                                     radius={6}
                                     maxBarSize={8}
-                                    fill="var(--color-q1)"
-                                />
-                                <Bar
-                                    dataKey="q2"
-                                    radius={6}
-                                    maxBarSize={8}
-                                    fill="var(--color-q1)"
-                                />
-                                <Bar
-                                    dataKey="q3"
-                                    radius={6}
-                                    maxBarSize={8}
-                                    fill="var(--color-q1)"
+                                    fill="var(--color-second)"
+                                    isAnimationActive={false}
                                 />
                             </BarChart>
                         </ChartContainer>
@@ -146,3 +102,5 @@ export default function LaboratoryCard({ lab }: LabProp) {
         </Link>
     );
 }
+
+export default memo(LaboratoryCard);

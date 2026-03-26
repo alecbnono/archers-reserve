@@ -1,28 +1,69 @@
 import SeatBox from "../atom/SeatBox";
 import {
     Card,
-    CardAction,
     CardContent,
-    CardDescription,
     CardFooter,
-    CardHeader,
-    CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuthStore } from "~/store/user.store";
-import { useState } from "react";
+import type { SeatOccupantPreview } from "~/features/reserve/types/reserve.types";
 
-export default function SeatSelection() {
-    const [reserveAll, setReserveAll] = useState(false);
+interface SeatSelectionProps {
+    totalSeats: number;
+    selectedSeat: number | null;
+    reserveAll: boolean;
+    isAnonymous: boolean;
+    occupiedSeatIds: number[];
+    seatOccupantPreviews: Map<number, SeatOccupantPreview>;
+    forceReserveAll?: boolean;
+    onSeatSelect: (seat: number | null) => void;
+    onReserveAllChange: (value: boolean) => void;
+    onAnonymousChange: (value: boolean) => void;
+}
 
+export default function SeatSelection({
+    totalSeats,
+    selectedSeat,
+    reserveAll,
+    isAnonymous,
+    occupiedSeatIds,
+    seatOccupantPreviews,
+    forceReserveAll = false,
+    onSeatSelect,
+    onReserveAllChange,
+    onAnonymousChange,
+}: SeatSelectionProps) {
     const currentUser = useAuthStore((state) => state.currentUser);
+
+    function handleSeatSelect(seatNumber: number) {
+        if (reserveAll) return;
+        if (occupiedSeatIds.includes(seatNumber)) return;
+        // Toggle: deselect if already selected, otherwise select the new one
+        onSeatSelect(selectedSeat === seatNumber ? null : seatNumber);
+    }
+
+    function handleReserveAllChange() {
+        const next = !reserveAll;
+        onReserveAllChange(next);
+        if (next) {
+            // Clear individual seat when reserving all
+            onSeatSelect(null);
+        }
+    }
 
     return (
         <Card className="flex flex-col items-center w-full gap-4 rounded-3xl border-2 border-green-300 bg-green-100">
             <CardContent>
                 <div className="flex gap-2 flex-wrap justify-center max-w-50">
-                    {Array.from({ length: 22 }, (_, i) => i + 1).map(() => (
-                        <SeatBox isDisabled={reserveAll} />
+                    {Array.from({ length: totalSeats }, (_, i) => i + 1).map((seat) => (
+                        <SeatBox
+                            key={seat}
+                            seatNumber={seat}
+                            checked={forceReserveAll || reserveAll || selectedSeat === seat}
+                            disabled={forceReserveAll || reserveAll || occupiedSeatIds.includes(seat)}
+                            occupantPreview={seatOccupantPreviews.get(seat)}
+                            onSelect={handleSeatSelect}
+                        />
                     ))}
                 </div>
             </CardContent>
@@ -34,8 +75,9 @@ export default function SeatSelection() {
                             <p className="text-sm">Reserve all?</p>
                             <Checkbox
                                 className="size-6 bg-white"
-                                checked={reserveAll}
-                                onCheckedChange={() => setReserveAll((prev) => !prev)}
+                                checked={forceReserveAll || reserveAll}
+                                disabled={forceReserveAll}
+                                onCheckedChange={handleReserveAllChange}
                             />
                         </div>
                     ) : (
@@ -43,7 +85,11 @@ export default function SeatSelection() {
                     )}
                     <div className="flex gap-2 items-center">
                         <p className="text-sm">Anonymous?</p>
-                        <Checkbox className="size-6 bg-white" />
+                        <Checkbox
+                            className="size-6 bg-white"
+                            checked={isAnonymous}
+                            onCheckedChange={() => onAnonymousChange(!isAnonymous)}
+                        />
                     </div>
                 </div>
             </CardFooter>
