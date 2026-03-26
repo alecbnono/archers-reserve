@@ -67,4 +67,27 @@ npm run dev
 ```
 
 
+## Using Jest for Unit Tests
+- [Return to top](#archers-reserve)
+
+### Set up packages if not yet installed
+1. switch to client and use npm install 
+
+```
+npm i --save-dev jest @types/jest ts-jest jest-environment-jsdom @testing-library/react
+```
+2. switch to server and use npm install
+```
+npm i --save-dev jest @types/jest ts-jest supertest
+```
+if an error shows looking for funding use
+```
+npm audit fix
+```
+
+### Using cmd to use Jest
+Using either client or server input
+```
+npm run test
+```
 
