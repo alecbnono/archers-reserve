@@ -29,20 +29,27 @@ import {
     type OccupancyPoint,
 } from "../../utils/chart";
 
-function LaboratoryCard({ room, selectedDate }: RoomProp) {
-    const dateParam = selectedDate ? `&date=${selectedDate}` : "";
+function LaboratoryCard({ room, selectedDate, isRecurring, selectedWeekday }: RoomProp) {
+    // In recurring mode, pass weekday instead of date
+    const dateParam = !isRecurring && selectedDate ? `&date=${selectedDate}` : "";
+    const recurringParam = isRecurring && selectedWeekday != null ? `&recurring=true&weekday=${selectedWeekday}` : "";
 
     const [occupancyData, setOccupancyData] = useState<ChartDataPoint[]>([]);
 
     useEffect(() => {
+        // Skip occupancy fetch in recurring mode (no specific date to show)
+        if (isRecurring) {
+            setOccupancyData([]);
+            return;
+        }
         if (!room.roomId || !selectedDate) return;
         fetch(`/rooms/${room.roomId}/occupancy?date=${selectedDate}`)
             .then(res => res.json())
             .then((data: OccupancyPoint[]) => setOccupancyData(buildChartData(data)));
-    }, [room.roomId, selectedDate]);
+    }, [room.roomId, selectedDate, isRecurring]);
 
     return (
-        <Link to={`confirm?roomId=${room.roomId}${dateParam}`} className="grow">
+        <Link to={`confirm?roomId=${room.roomId}${dateParam}${recurringParam}`} className="grow">
             <Card className="grow">
                 <CardHeader className="flex justify-between">
                     <div className="flex items-start gap-2">

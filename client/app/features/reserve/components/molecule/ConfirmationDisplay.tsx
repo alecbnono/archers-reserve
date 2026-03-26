@@ -7,6 +7,7 @@ import { FaMapPin } from "react-icons/fa6";
 import { FaComputer } from "react-icons/fa6";
 import type { TimeslotType } from "../../types/reserve.types";
 import { formatSelectedTimeslots, formatDate } from "../../utils/reserve";
+import { computeRecurringEndDate } from "../../utils/date";
 
 interface ConfirmationDisplayProps {
     roomCode: string | null;
@@ -16,6 +17,7 @@ interface ConfirmationDisplayProps {
     timeslots: TimeslotType[];
     selectedSeat: number | null;
     reserveAll: boolean;
+    isRecurring?: boolean;
 }
 
 export default function ConfirmationDisplay({
@@ -26,7 +28,12 @@ export default function ConfirmationDisplay({
     timeslots,
     selectedSeat,
     reserveAll,
+    isRecurring,
 }: ConfirmationDisplayProps) {
+    const recurringEndDate = isRecurring && selectedDate
+        ? computeRecurringEndDate(selectedDate)
+        : null;
+
     return (
         <Card className="rounded-3xl border-2 border-green-300 bg-green-100">
             <CardContent className="flex flex-col gap-2">
@@ -44,18 +51,25 @@ export default function ConfirmationDisplay({
                 </div>
                 <div className="flex gap-2">
                     <LuCalendarClock size={24} className="shrink-0 mt-0.5" />
-                    <div className="flex flex-row gap-1 flex-wrap w-50">
-                        {selectedDate ? (
-                            <p className="text-md font-medium">{formatDate(selectedDate)}</p>
-                        ) : (
-                            <p className="text-md text-neutral-400">No date selected</p>
-                        )}
-                        {selectedTimeslotIds.length > 0 ? (
-                            <p className="text-md">
-                                {formatSelectedTimeslots(selectedTimeslotIds, timeslots)}
+                    <div className="flex flex-col gap-1 w-50">
+                        <div className="flex flex-row gap-1 flex-wrap">
+                            {selectedDate ? (
+                                <p className="text-md font-medium">{formatDate(selectedDate)}</p>
+                            ) : (
+                                <p className="text-md text-neutral-400">No date selected</p>
+                            )}
+                            {selectedTimeslotIds.length > 0 ? (
+                                <p className="text-md">
+                                    {formatSelectedTimeslots(selectedTimeslotIds, timeslots)}
+                                </p>
+                            ) : (
+                                <p className="text-md text-neutral-400">No timeslot selected</p>
+                            )}
+                        </div>
+                        {recurringEndDate && selectedDate && (
+                            <p className="text-xs text-green-700">
+                                Recurring weekly from {formatDate(selectedDate)} until {formatDate(recurringEndDate)}
                             </p>
-                        ) : (
-                            <p className="text-md text-neutral-400">No timeslot selected</p>
                         )}
                     </div>
                 </div>

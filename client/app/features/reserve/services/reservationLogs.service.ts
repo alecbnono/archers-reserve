@@ -42,6 +42,30 @@ export async function fetchAllReservations(): Promise<ReservationListResult> {
   return { reservations: data.reservations };
 }
 
+/**
+ * Fetch a target user's reservations (GET /reservations/user/:userId).
+ * Respects server-side privacy checks (profile must be public).
+ */
+export async function fetchUserReservations(
+  userId: number,
+): Promise<ReservationListResult> {
+  try {
+    const res = await fetch(`${BASE_URL}/user/${userId}`, {
+      credentials: "include",
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return { error: data.error || "Failed to fetch reservations" };
+    }
+
+    return { reservations: data.reservations };
+  } catch {
+    return { error: "Network error fetching reservations" };
+  }
+}
+
 // ─── Cancellation ─────────────────────────────────────────────────────
 
 export interface CancelReservationResult {
@@ -83,10 +107,12 @@ export interface BatchDetailResult {
   roomCode: string;
   building: string;
   date: string;
+  dates: string[];
   timeslotIds: number[];
   seatId: number | null;
   reserveAll: boolean;
   isAnonymous: boolean;
+  isRecurring: boolean;
   status: string;
 }
 
@@ -127,6 +153,7 @@ export interface EditReservationPayload {
   seatId?: number | null;
   reserveAll: boolean;
   isAnonymous: boolean;
+  isRecurring?: boolean;
 }
 
 export interface EditReservationResult {

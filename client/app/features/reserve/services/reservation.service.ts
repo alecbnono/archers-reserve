@@ -9,6 +9,7 @@ export interface CreateReservationPayload {
   reserveAll: boolean;
   isAnonymous: boolean;
   targetUserId?: number; // Admin on-behalf: the user who will own the reservation
+  isRecurring?: boolean;
 }
 
 export interface CreateReservationResponse {

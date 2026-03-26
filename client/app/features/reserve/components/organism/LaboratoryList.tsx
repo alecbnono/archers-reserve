@@ -20,6 +20,7 @@ export default function LaboratoryList() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [timeRange, setTimeRange] = useState<[number, number]>([420, 1080]); // 7:00–18:00
+    const [isRecurring, setIsRecurring] = useState(false);
 
     useEffect(() => {
         fetch("/rooms/buildings", { credentials: "include" })
@@ -80,14 +81,20 @@ export default function LaboratoryList() {
     const handleDayChange = useCallback(
         (value: string) => {
             const index = Number(value);
-            if (weekData && !weekData.days[index]?.isPast) {
-                setActiveDayIndex(index);
+            if (isRecurring) {
+                // Recurring mode: all weekdays are selectable
+                if (index >= 0 && index <= 6) setActiveDayIndex(index);
+            } else {
+                if (weekData && !weekData.days[index]?.isPast) {
+                    setActiveDayIndex(index);
+                }
             }
         },
-        [weekData]
+        [weekData, isRecurring]
     );
 
-    const selectedDate = weekData?.days[activeDayIndex]?.dateString;
+    // In recurring mode, date is irrelevant — only weekday matters
+    const selectedDate = isRecurring ? undefined : weekData?.days[activeDayIndex]?.dateString;
 
     const roomContent = isLoading ? (
         <p className="text-muted-foreground text-center py-8 w-full">
@@ -108,7 +115,7 @@ export default function LaboratoryList() {
                 className="animate-card-in grow"
                 style={{ animationDelay: `${index * 60}ms` }}
             >
-                <LaboratoryCard room={room} selectedDate={selectedDate} />
+                <LaboratoryCard room={room} selectedDate={selectedDate} isRecurring={isRecurring} selectedWeekday={isRecurring ? activeDayIndex : undefined} />
             </div>
         ))
     );
@@ -169,13 +176,15 @@ export default function LaboratoryList() {
                                     <TabsTrigger
                                         key={day.index}
                                         value={day.index.toString()}
-                                        disabled={day.isPast}
+                                        disabled={isRecurring ? false : day.isPast}
                                         className="h-auto py-1 min-w-12 flex-col items-center leading-tight md:flex-row md:min-w-0 md:whitespace-nowrap"
                                     >
                                         <span className="whitespace-nowrap">{dayName}</span>
-                                        <span className="whitespace-nowrap text-[10px] md:text-xs">
-                                            {dateLabel}
-                                        </span>
+                                        {!isRecurring && (
+                                            <span className="whitespace-nowrap text-[10px] md:text-xs">
+                                                {dateLabel}
+                                            </span>
+                                        )}
                                     </TabsTrigger>
                                 );
                             })}
@@ -184,6 +193,8 @@ export default function LaboratoryList() {
                             weeks={weeks}
                             value={selectedWeek}
                             onChange={handleWeekChange}
+                            isRecurring={isRecurring}
+                            onRecurringChange={setIsRecurring}
                         />
                     </div>
                     <div className="flex flex-col-reverse md:grid md:grid-cols-[1fr_auto] justify-end flex-col gap-2">

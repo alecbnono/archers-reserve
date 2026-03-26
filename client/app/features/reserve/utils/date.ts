@@ -158,3 +158,48 @@ export function getFirstValidDayIndex(days: DayOption[]): number {
     const first = days.find((d) => !d.isPast);
     return first?.index ?? 0;
 }
+
+/**
+ * Compute the last date of a recurring weekly series (start + 3 calendar months, inclusive).
+ * Mirrors the server-side `expandWeeklyDates` logic. Returns "YYYY-MM-DD".
+ */
+export function computeRecurringEndDate(startDateStr: string): string {
+    const [y, m, d] = startDateStr.split("-").map(Number);
+    const start = new Date(y, m - 1, d);
+    const endBound = new Date(y, m - 1 + 3, d); // +3 calendar months
+
+    let current = new Date(start);
+    let last = current;
+    while (current <= endBound) {
+        last = new Date(current);
+        current = addDays(current, 7);
+    }
+    return toDateString(last);
+}
+
+/**
+ * Given a weekday index (0=Mon..6=Sun from our day tabs), return the
+ * next occurrence of that weekday as "YYYY-MM-DD".
+ *
+ * If today IS that weekday, return NEXT week's occurrence so that
+ * all timeslots in the first date are guaranteed to be in the future.
+ * For other weekdays, return the upcoming occurrence this week.
+ */
+export function getNextWeekdayDate(weekdayIndex: number): string {
+    const today = new Date();
+    // JS getDay(): 0=Sun,1=Mon..6=Sat
+    // Our tabs: 0=Mon..5=Sat,6=Sun
+    // Convert our index → JS day: Mon=1,Tue=2,...Sat=6,Sun=0
+    const targetJsDay = weekdayIndex === 6 ? 0 : weekdayIndex + 1;
+    const todayJsDay = today.getDay();
+
+    let diff = targetJsDay - todayJsDay;
+    if (diff <= 0) diff += 7; // today or past → push to next week
+
+    const target = localDate(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() + diff,
+    );
+    return toDateString(target);
+}

@@ -5,6 +5,9 @@ import * as profileController from "./profile.controller.js";
 
 const router = Router();
 
+// GET /profile/:userId — public profile view
+router.get("/:userId", requireAuth, profileController.getPublicProfile);
+
 // POST /profile/me/avatar
 // requireAuth runs first so req.user is populated before multer needs it for filename
 router.post(

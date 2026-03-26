@@ -34,11 +34,29 @@ export default function ReserveLogRow({
         year: "numeric",
     });
 
+    // Format end date for recurring reservations
+    let dateDisplay = resDate;
+    if (reservation.isRecurring && reservation.reservationDateEnd) {
+        const endStr = reservation.reservationDateEnd.includes("T")
+            ? reservation.reservationDateEnd.slice(0, 10)
+            : reservation.reservationDateEnd;
+        const [ey, em, ed] = endStr.split("-").map(Number);
+        const endDate = new Date(ey, em - 1, ed).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+        });
+        dateDisplay = `${resDate} – ${endDate}`;
+    }
+
     // Actions are only meaningful on upcoming reservations
-    const isManageable = canManage && reservation.status === "UPCOMING";
+    // For recurring ongoing batches, cancel is allowed (cancels future occurrences only)
+    const isUpcoming = reservation.status === "UPCOMING";
+    const canEdit = canManage && isUpcoming;
+    const canCancel = canManage && (isUpcoming || (reservation.status === "ONGOING" && reservation.isRecurring));
 
     const handleEdit = () => {
-        if (!isManageable) return;
+        if (!canEdit) return;
         const params = new URLSearchParams({
             roomId: String(reservation.roomId),
             date: dateStr,
@@ -55,7 +73,12 @@ export default function ReserveLogRow({
                     : reservation.batchId.slice(0, 8)}
             </TableCell>
             <TableCell>{requestedStr}</TableCell>
-            <TableCell>{resDate}</TableCell>
+            <TableCell>
+                {dateDisplay}
+                {reservation.isRecurring && (
+                    <span className="ml-1 text-xs text-muted-foreground">(weekly)</span>
+                )}
+            </TableCell>
             <TableCell>{reservation.timeSlot}</TableCell>
             <TableCell>{reservation.building}</TableCell>
             <TableCell>{reservation.roomCode}</TableCell>
@@ -81,16 +104,16 @@ export default function ReserveLogRow({
                     <TableCell>
                         <Button
                             variant="destructive"
-                            disabled={!isManageable || isCancelling}
+                            disabled={!canCancel || isCancelling}
                             onClick={() => onCancel(reservation.batchId)}
                         >
-                            {isCancelling ? "Cancelling..." : "Cancel"}
+                            {isCancelling ? "Cancelling..." : (reservation.status === "ONGOING" && reservation.isRecurring ? "Cancel Future" : "Cancel")}
                         </Button>
                     </TableCell>
                     <TableCell>
                         <Button
                             variant="secondary"
-                            disabled={!isManageable}
+                            disabled={!canEdit}
                             onClick={handleEdit}
                         >
                             Edit

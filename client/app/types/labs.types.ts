@@ -14,4 +14,6 @@ export interface RoomType {
 export interface RoomProp {
     room: RoomType;
     selectedDate?: string;
+    isRecurring?: boolean;
+    selectedWeekday?: number; // 0=Mon..6=Sun, used only when isRecurring
 }
