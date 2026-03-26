@@ -74,11 +74,11 @@ npm run dev
 1. switch to client and use npm install 
 
 ```
-npm i --save-dev jest @types/jest ts-jest jest-environment-jsdom @testing-library/react
+npm i --save-dev jest @types/jest ts-jest jest-environment-jsdom @testing-library/react jest-html-reporter
 ```
 2. switch to server and use npm install
 ```
-npm i --save-dev jest @types/jest ts-jest supertest
+npm i --save-dev jest @types/jest ts-jest supertest jest-html-reporter
 ```
 if an error shows looking for funding use
 ```
@@ -90,4 +90,5 @@ Using either client or server input
 ```
 npm run test
 ```
+Use console or copy paste the path of the created "test-report.html" file onto your browser
 

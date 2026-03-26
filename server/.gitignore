@@ -3,3 +3,5 @@
 /node_modules/
 /uploads/**
 !/uploads/profile/.gitkeep
+
+test-report.html
