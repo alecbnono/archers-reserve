@@ -10,8 +10,14 @@ router.post("/", requireAuth, reservationController.createReservation);
 // GET /reservations/availability?roomId=...&date=YYYY-MM-DD — timeslot + seat occupancy
 router.get("/availability", requireAuth, reservationController.getAvailability);
 
+// POST /reservations/recurring-conflicts — check FACULTY/ADMIN conflicts for recurring series
+router.post("/recurring-conflicts", requireAuth, reservationController.checkRecurringConflicts);
+
 // GET /reservations/me — current user's reservations
 router.get("/me", requireAuth, reservationController.getMyReservations);
+
+// GET /reservations/user/:userId — target user's reservations (public profile)
+router.get("/user/:userId", requireAuth, reservationController.getUserReservations);
 
 // GET /reservations — all reservations (admin only)
 router.get("/", requireAuth, reservationController.getAllReservations);

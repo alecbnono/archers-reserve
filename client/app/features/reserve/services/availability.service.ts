@@ -41,6 +41,12 @@ export async function fetchAvailability(
         endTime: ts.endTime,
         occupiedSeats: ts.occupiedSeats,
         reservedSeatIds: ts.reservedSeatIds,
+        seatOccupants: (ts.seatOccupants ?? []).map((o: any) => ({
+          seatId: o.seatId,
+          profilePictureUrl: o.profilePictureUrl ?? null,
+          isAnonymous: o.isAnonymous ?? false,
+          visibleUserId: o.visibleUserId,
+        })),
         capacity: json.room.capacity,
       })),
     };
@@ -48,5 +54,47 @@ export async function fetchAvailability(
     return { data };
   } catch {
     return { error: "Network error fetching availability" };
+  }
+}
+
+// ─── Recurring conflict check ─────────────────────────────────────────
+
+export interface RecurringConflictPayload {
+  roomId: number;
+  date: string;
+  timeslotIds: number[];
+  seatId?: number | null;
+  reserveAll: boolean;
+}
+
+export interface RecurringConflictResult {
+  hasFacultyConflict?: boolean;
+  error?: string;
+}
+
+/**
+ * POST /reservations/recurring-conflicts
+ * Lightweight check for FACULTY/ADMIN conflicts across a recurring date series.
+ */
+export async function checkRecurringConflicts(
+  payload: RecurringConflictPayload,
+): Promise<RecurringConflictResult> {
+  try {
+    const res = await fetch(`${BASE_URL}/recurring-conflicts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      return { error: json.error || "Failed to check recurring conflicts" };
+    }
+
+    return { hasFacultyConflict: json.hasFacultyConflict };
+  } catch {
+    return { error: "Network error checking recurring conflicts" };
   }
 }

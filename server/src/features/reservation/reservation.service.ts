@@ -18,12 +18,14 @@ export interface ReservationRow {
   batchId: string;
   requestTime: string;
   reservationDate: string;
+  reservationDateEnd: string | null;  // non-null for recurring batches
   timeSlot: string;
   building: string;
   roomId: number;
   roomCode: string;
   seatLabel: string;
   isAnonymous: boolean;
+  isRecurring: boolean;
   status: ReservationStatus;
   cancelledAt: string | null;
   // Admin-only fields
@@ -34,12 +36,21 @@ export interface ReservationRow {
   role?: string;
 }
 
+export interface SeatOccupant {
+  seatId: number;
+  profilePictureUrl: string | null;
+  isAnonymous: boolean;
+  /** Real user ID when visible (public + non-anonymous), unique negative sentinel otherwise. */
+  visibleUserId: number;
+}
+
 export interface AvailabilityTimeslot {
   timeslotId: number;
   startTime: string;
   endTime: string;
   occupiedSeats: number;
   reservedSeatIds: number[];
+  seatOccupants: SeatOccupant[];
 }
 
 export interface AvailabilityResult {
@@ -139,6 +150,34 @@ function mergeTimeslotRanges(
     .join(", ");
 }
 
+// ─── Recurring date expansion ─────────────────────────────────────────
+
+/**
+ * Expand a start date into an array of weekly dates (same weekday)
+ * from the start date through +3 months (inclusive).
+ * Returns dates as "YYYY-MM-DD" strings.
+ */
+function expandWeeklyDates(startDateStr: string): string[] {
+  const [y, m, d] = startDateStr.split("-").map(Number);
+  const start = new Date(y, m - 1, d);
+
+  // End boundary: same day-of-month 3 calendar months later (inclusive)
+  const end = new Date(y, m - 1 + 3, d);
+
+  const dates: string[] = [];
+  const cur = new Date(start);
+
+  while (cur <= end) {
+    const yy = cur.getFullYear();
+    const mm = String(cur.getMonth() + 1).padStart(2, "0");
+    const dd = String(cur.getDate()).padStart(2, "0");
+    dates.push(`${yy}-${mm}-${dd}`);
+    cur.setDate(cur.getDate() + 7);
+  }
+
+  return dates;
+}
+
 // ─── Grouped reservation queries ──────────────────────────────────────
 
 /**
@@ -147,7 +186,9 @@ function mergeTimeslotRanges(
 interface GroupedRawRow {
   batch_key: string;
   request_time: string;
-  request_date: string;
+  request_date: string;       // MIN(request_date) for recurring
+  request_date_end: string | null;  // MAX(request_date), non-null when recurring
+  is_recurring: boolean;
   building: string;
   room_id: number;
   room_code: string;
@@ -198,12 +239,14 @@ function mapGroupedRow(row: GroupedRawRow): ReservationRow {
     batchId: row.batch_key,
     requestTime: row.request_time,
     reservationDate: toYyyyMmDd(row.request_date),
+    reservationDateEnd: row.request_date_end ? toYyyyMmDd(row.request_date_end) : null,
     timeSlot,
     building: row.building,
     roomId: row.room_id,
     roomCode: row.room_code,
     seatLabel,
     isAnonymous: row.is_anonymous,
+    isRecurring: row.is_recurring ?? false,
     status: deriveGroupStatus(row.statuses),
     cancelledAt: row.cancelled_at ?? null,
   };
@@ -257,7 +300,9 @@ const BATCH_FILTER_CTE = `
 const GROUPED_SELECT_COLUMNS = `
     f.batch_key,
     MIN(f.request_time)      AS request_time,
-    MAX(f.request_date)      AS request_date,
+    MIN(f.request_date)      AS request_date,
+    CASE WHEN BOOL_OR(f.is_recurring) THEN MAX(f.request_date) ELSE NULL END AS request_date_end,
+    BOOL_OR(f.is_recurring)  AS is_recurring,
     MIN(rm.building)         AS building,
     MIN(f.room_id)           AS room_id,
     MIN(rm.room_code)        AS room_code,
@@ -380,20 +425,24 @@ export async function getAvailability(
      ORDER BY start_time`,
   );
 
-  // 4. Fetch active reservations for this room + date
+  // 4. Fetch active reservations for this room + date, including occupant info
   //    When editing, exclude the batch being edited so those seats aren't shown as occupied
   const reservationQuery = excludeBatchId
-    ? `SELECT timeslot_id, seat_id
-       FROM reservation
-       WHERE room_id = $1
-         AND request_date = $2
-         AND cancelled_at IS NULL
-         AND reservation_batch_id != $3`
-    : `SELECT timeslot_id, seat_id
-       FROM reservation
-       WHERE room_id = $1
-         AND request_date = $2
-         AND cancelled_at IS NULL`;
+    ? `SELECT r.timeslot_id, r.seat_id, r.is_anonymous, r.user_id,
+              u.is_public, u.profile_picture_url
+       FROM reservation r
+       JOIN "user" u ON u.user_id = r.user_id
+       WHERE r.room_id = $1
+         AND r.request_date = $2
+         AND r.cancelled_at IS NULL
+         AND r.reservation_batch_id != $3`
+    : `SELECT r.timeslot_id, r.seat_id, r.is_anonymous, r.user_id,
+              u.is_public, u.profile_picture_url
+       FROM reservation r
+       JOIN "user" u ON u.user_id = r.user_id
+       WHERE r.room_id = $1
+         AND r.request_date = $2
+         AND r.cancelled_at IS NULL`;
 
   const reservationParams: any[] = excludeBatchId
     ? [roomId, date, excludeBatchId]
@@ -401,14 +450,30 @@ export async function getAvailability(
 
   const reservationResult = await pool.query(reservationQuery, reservationParams);
 
-  // Group reserved seats by timeslot
+  // Group reserved seats and occupant info by timeslot
+  // For hidden users (anonymous or private), use a unique negative sentinel per row
+  // so the client never accidentally collapses two different hidden users into one.
+  let hiddenSentinel = 0;
   const reservedByTimeslot = new Map<number, number[]>();
+  const occupantsByTimeslot = new Map<number, SeatOccupant[]>();
   for (const row of reservationResult.rows) {
     const tsId = row.timeslot_id;
     if (!reservedByTimeslot.has(tsId)) {
       reservedByTimeslot.set(tsId, []);
+      occupantsByTimeslot.set(tsId, []);
     }
     reservedByTimeslot.get(tsId)!.push(row.seat_id);
+
+    // Privacy: only expose avatar + real userId when reservation is not anonymous AND user profile is public
+    const isAnon = row.is_anonymous;
+    const isPublic = row.is_public;
+    const showIdentity = !isAnon && isPublic;
+    occupantsByTimeslot.get(tsId)!.push({
+      seatId: row.seat_id,
+      profilePictureUrl: showIdentity ? (row.profile_picture_url || null) : null,
+      isAnonymous: isAnon,
+      visibleUserId: showIdentity ? row.user_id : --hiddenSentinel,
+    });
   }
 
   // 5. Build timeslot availability
@@ -422,6 +487,7 @@ export async function getAvailability(
         endTime: row.end_time,
         occupiedSeats: reservedSeatIds.length,
         reservedSeatIds,
+        seatOccupants: occupantsByTimeslot.get(tsId) ?? [],
       };
     },
   );
@@ -440,6 +506,7 @@ export interface CreateReservationInput {
   seatId?: number | null;
   reserveAll: boolean;
   isAnonymous: boolean;
+  isRecurring: boolean;
   targetUserId?: number; // Admin on-behalf: the user who will own the reservation
 }
 
@@ -464,8 +531,16 @@ export async function createReservation(
 ): Promise<CreateReservationResult> {
   const {
     userId, userRole, roomId, date,
-    timeslotIds, seatId, reserveAll, isAnonymous, targetUserId,
+    timeslotIds, seatId, reserveAll, isAnonymous, isRecurring, targetUserId,
   } = input;
+
+  // Defense-in-depth: recurring must always reserve all seats
+  if (isRecurring && !reserveAll) {
+    throw new AppError("Recurring reservations must reserve all seats", 400);
+  }
+  if (isRecurring && seatId != null) {
+    throw new AppError("Recurring reservations cannot specify a single seat", 400);
+  }
 
   // --- Admin on-behalf: validate target user exists and is not ADMIN ---
   if (targetUserId != null) {
@@ -500,7 +575,8 @@ export async function createReservation(
     throw new AppError("One or more timeslot IDs are invalid", 400);
   }
 
-  // --- Reject any timeslots whose start time has already passed on the requested date ---
+  // --- Reject any timeslots whose start time has already passed on the FIRST date ---
+  // (For recurring, future dates inherently have future timeslots)
   const pastCheck = await pool.query(
     `SELECT timeslot_id
      FROM timeslot
@@ -541,6 +617,9 @@ export async function createReservation(
     targetSeatIds = [seatId];
   }
 
+  // --- Expand dates (single or weekly recurring) ---
+  const dates = isRecurring ? expandWeeklyDates(date) : [date];
+
   // --- Generate a batch UUID for this entire submission ---
   const batchId = randomUUID();
 
@@ -573,17 +652,17 @@ export async function createReservation(
       }
     }
     
-    // 1. Find all active conflicting reservations
+    // 1. Find all active conflicting reservations across ALL dates
     const conflictResult = await client.query(
-      `SELECT r.reservation_id, r.seat_id, r.timeslot_id, u.role AS owner_role
+      `SELECT r.reservation_id, r.seat_id, r.timeslot_id, r.request_date, u.role AS owner_role
        FROM reservation r
        JOIN "user" u ON u.user_id = r.user_id
        WHERE r.room_id = $1
-         AND r.request_date = $2
+         AND r.request_date = ANY($2::date[])
          AND r.timeslot_id = ANY($3::int[])
          AND r.seat_id = ANY($4::int[])
          AND r.cancelled_at IS NULL`,
-      [roomId, date, timeslotIds, targetSeatIds],
+      [roomId, dates, timeslotIds, targetSeatIds],
     );
 
     const conflicts = conflictResult.rows;
@@ -620,11 +699,13 @@ export async function createReservation(
       );
     }
 
-    // 2. Insert new reservations for every (seat x timeslot)
-    const rows: [string, number, number, number, number, string, boolean][] = [];
-    for (const sid of targetSeatIds) {
-      for (const tid of timeslotIds) {
-        rows.push([batchId, userId, sid, roomId, tid, date, isAnonymous]);
+    // 2. Insert new reservations for every (date x seat x timeslot)
+    const rows: [string, number, number, number, number, string, boolean, boolean][] = [];
+    for (const d of dates) {
+      for (const sid of targetSeatIds) {
+        for (const tid of timeslotIds) {
+          rows.push([batchId, userId, sid, roomId, tid, d, isAnonymous, isRecurring]);
+        }
       }
     }
 
@@ -632,16 +713,16 @@ export async function createReservation(
     const valuePlaceholders: string[] = [];
     const params: any[] = [];
     let idx = 1;
-    for (const [bid, uid, sid, rid, tid, d, anon] of rows) {
+    for (const [bid, uid, sid, rid, tid, d, anon, recur] of rows) {
       valuePlaceholders.push(
-        `($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6})`,
+        `($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6}, $${idx + 7})`,
       );
-      params.push(bid, uid, sid, rid, tid, d, anon);
-      idx += 7;
+      params.push(bid, uid, sid, rid, tid, d, anon, recur);
+      idx += 8;
     }
 
     await client.query(
-      `INSERT INTO reservation (reservation_batch_id, user_id, seat_id, room_id, timeslot_id, request_date, is_anonymous)
+      `INSERT INTO reservation (reservation_batch_id, user_id, seat_id, room_id, timeslot_id, request_date, is_anonymous, is_recurring)
        VALUES ${valuePlaceholders.join(", ")}`,
       params,
     );
@@ -748,20 +829,19 @@ export async function cancelReservationBatch(
     throw new AppError("You do not have permission to cancel this reservation", 403);
   }
 
-  // 3. Validate all active rows are cancellable (UPCOMING)
+  // 3. Only cancel FUTURE active rows (skip past/ongoing rows for recurring batches)
   const now = new Date();
-  for (const row of rows) {
-    const slotStart = new Date(row.slot_start);
-    if (now >= slotStart) {
-      throw new AppError(
-        "Cannot cancel a reservation that has already started or completed",
-        409,
-      );
-    }
+  const futureRows = rows.filter((r: any) => new Date(r.slot_start) > now);
+
+  if (futureRows.length === 0) {
+    throw new AppError(
+      "No upcoming rows to cancel (all have already started or completed)",
+      409,
+    );
   }
 
-  // 4. Soft-cancel all active rows in the batch
-  const ids = rows.map((r: any) => r.reservation_id);
+  // 4. Soft-cancel future active rows in the batch
+  const ids = futureRows.map((r: any) => r.reservation_id);
   const updateResult = await pool.query(
     `UPDATE reservation
      SET cancelled_at = NOW()
@@ -781,11 +861,13 @@ export interface BatchDetail {
   roomId: number;
   roomCode: string;
   building: string;
-  date: string;           // YYYY-MM-DD
+  date: string;           // YYYY-MM-DD — earliest future date (or first date if all past)
+  dates: string[];        // All distinct request_dates sorted ascending
   timeslotIds: number[];
   seatId: number | null;  // null when reserveAll
   reserveAll: boolean;
   isAnonymous: boolean;
+  isRecurring: boolean;
   status: ReservationStatus;
 }
 
@@ -810,7 +892,8 @@ export async function getReservationBatchDetail(
     }
     fetchQuery = `
       SELECT r.reservation_id, r.user_id, r.room_id, r.seat_id,
-             r.timeslot_id, r.request_date, r.is_anonymous, r.cancelled_at,
+             r.timeslot_id, r.request_date, r.is_anonymous, r.is_recurring,
+             r.cancelled_at,
              rm.room_code, rm.building,
              (r.request_date + t.start_time)::timestamp AS slot_start
       FROM reservation r
@@ -825,7 +908,8 @@ export async function getReservationBatchDetail(
     }
     fetchQuery = `
       SELECT r.reservation_id, r.user_id, r.room_id, r.seat_id,
-             r.timeslot_id, r.request_date, r.is_anonymous, r.cancelled_at,
+             r.timeslot_id, r.request_date, r.is_anonymous, r.is_recurring,
+             r.cancelled_at,
              rm.room_code, rm.building,
              (r.request_date + t.start_time)::timestamp AS slot_start
       FROM reservation r
@@ -861,7 +945,6 @@ export async function getReservationBatchDetail(
     if (row.cancelled_at !== null) return "CANCELLED" as ReservationStatus;
     const slotStart = new Date(row.slot_start);
     if (now < slotStart) return "UPCOMING" as ReservationStatus;
-    // We don't need endTime for the detail check; if started, it's ONGOING or COMPLETED
     return "ONGOING" as ReservationStatus;
   });
   const status = deriveGroupStatus(statuses);
@@ -873,6 +956,19 @@ export async function getReservationBatchDetail(
   const uniqueSeatIds = [...new Set(rows.map((r: any) => r.seat_id as number))].sort(
     (a, b) => a - b,
   );
+
+  // Collect all distinct dates, sorted ascending
+  const allDates = [...new Set(rows.map((r: any) => toYyyyMmDd(r.request_date)))].sort();
+
+  // isRecurring: true if ANY row has is_recurring = true
+  const isRecurring = rows.some((r: any) => r.is_recurring === true);
+
+  // For edit prefill, use earliest future date as the "base" date; fallback to first date
+  const futureDates = allDates.filter((d) => {
+    const [y, m, dd] = d.split("-").map(Number);
+    return new Date(y, m - 1, dd, 23, 59, 59) >= now;
+  });
+  const baseDate = futureDates.length > 0 ? futureDates[0] : allDates[0];
 
   // Determine reserveAll: if more than 1 unique seat, it was a reserveAll submission
   const seatCountResult = await pool.query(
@@ -888,11 +984,13 @@ export async function getReservationBatchDetail(
     roomId: rows[0].room_id,
     roomCode: rows[0].room_code,
     building: rows[0].building,
-    date: toYyyyMmDd(rows[0].request_date),
+    date: baseDate,
+    dates: allDates,
     timeslotIds,
     seatId: reserveAll ? null : uniqueSeatIds[0],
     reserveAll,
     isAnonymous: rows[0].is_anonymous,
+    isRecurring,
     status,
   };
 }
@@ -909,6 +1007,7 @@ export interface EditReservationInput {
   seatId?: number | null;
   reserveAll: boolean;
   isAnonymous: boolean;
+  isRecurring: boolean;
 }
 
 export interface EditReservationResult {
@@ -921,10 +1020,10 @@ export interface EditReservationResult {
  *
  * Transactional flow:
  * 1. Lock existing batch rows FOR UPDATE.
- * 2. Validate: owner or ADMIN, all rows UPCOMING, not cancelled.
- * 3. Soft-cancel old rows (cancelled_at = NOW()).
- * 4. Validate new selections (room, seats, timeslots, no past slots).
- * 5. Conflict check with same override policy as create:
+ * 2. Validate: owner or ADMIN, not all cancelled.
+ * 3. Only soft-cancel FUTURE active rows (past rows are left untouched).
+ * 4. Validate new selections (room, seats, timeslots, no past slots on first date).
+ * 5. Conflict check across all dates with same override policy as create:
  *    - FACULTY/ADMIN can soft-cancel conflicting STUDENT reservations.
  *    - Cannot override FACULTY/ADMIN reservations.
  * 6. Insert new rows under the SAME reservation_batch_id.
@@ -936,8 +1035,16 @@ export async function editReservationBatch(
 ): Promise<EditReservationResult> {
   const {
     batchId, actorUserId, actorRole,
-    roomId, date, timeslotIds, seatId, reserveAll, isAnonymous,
+    roomId, date, timeslotIds, seatId, reserveAll, isAnonymous, isRecurring,
   } = input;
+
+  // Defense-in-depth: recurring must always reserve all seats
+  if (isRecurring && !reserveAll) {
+    throw new AppError("Recurring reservations must reserve all seats", 400);
+  }
+  if (isRecurring && seatId != null) {
+    throw new AppError("Recurring reservations cannot specify a single seat", 400);
+  }
 
   const isLegacy = batchId.startsWith("legacy-");
 
@@ -959,7 +1066,7 @@ export async function editReservationBatch(
     throw new AppError("One or more timeslot IDs are invalid", 400);
   }
 
-  // --- Reject past timeslots ---
+  // --- Reject past timeslots (only first date matters for recurring) ---
   const pastCheck = await pool.query(
     `SELECT timeslot_id
      FROM timeslot
@@ -999,6 +1106,9 @@ export async function editReservationBatch(
     }
     targetSeatIds = [seatId];
   }
+
+  // --- Expand dates (single or weekly recurring) ---
+  const dates = isRecurring ? expandWeeklyDates(date) : [date];
 
   // --- Begin transaction ---
   const client = await pool.connect();
@@ -1056,8 +1166,7 @@ export async function editReservationBatch(
       throw new AppError("Cannot edit a cancelled reservation", 409);
     }
 
-    const oldRows = activeRows;
-    const ownerUserId: number = oldRows[0].user_id;
+    const ownerUserId: number = activeRows[0].user_id;
 
     // 2. Permission check
     if (actorUserId !== ownerUserId && actorRole !== "ADMIN") {
@@ -1065,21 +1174,19 @@ export async function editReservationBatch(
       throw new AppError("You do not have permission to edit this reservation", 403);
     }
 
-    // 3. Validate all active rows are UPCOMING
+    // 3. Only soft-cancel FUTURE active rows (past/ongoing rows are left untouched)
     const now = new Date();
-    for (const row of oldRows) {
-      const slotStart = new Date(row.slot_start);
-      if (now >= slotStart) {
-        await client.query("ROLLBACK");
-        throw new AppError(
-          "Cannot edit a reservation that has already started or completed",
-          409,
-        );
-      }
+    const futureRows = activeRows.filter((r: any) => new Date(r.slot_start) > now);
+
+    if (futureRows.length === 0) {
+      await client.query("ROLLBACK");
+      throw new AppError(
+        "No upcoming rows remain to edit (all have started or completed)",
+        409,
+      );
     }
 
-    // 4. Soft-cancel active rows (old generation)
-    const oldIds = oldRows.map((r: any) => r.reservation_id);
+    const oldIds = futureRows.map((r: any) => r.reservation_id);
     await client.query(
       `UPDATE reservation
        SET cancelled_at = NOW()
@@ -1088,17 +1195,17 @@ export async function editReservationBatch(
       [oldIds],
     );
 
-    // 5. Check for conflicts (excluding the rows we just cancelled, which belong to this batch)
+    // 5. Check for conflicts across all dates (excluding the rows we just cancelled)
     const conflictResult = await client.query(
-      `SELECT r.reservation_id, r.seat_id, r.timeslot_id, u.role AS owner_role
+      `SELECT r.reservation_id, r.seat_id, r.timeslot_id, r.request_date, u.role AS owner_role
        FROM reservation r
        JOIN "user" u ON u.user_id = r.user_id
        WHERE r.room_id = $1
-         AND r.request_date = $2
+         AND r.request_date = ANY($2::date[])
          AND r.timeslot_id = ANY($3::int[])
          AND r.seat_id = ANY($4::int[])
          AND r.cancelled_at IS NULL`,
-      [roomId, date, timeslotIds, targetSeatIds],
+      [roomId, dates, timeslotIds, targetSeatIds],
     );
 
     const conflicts = conflictResult.rows;
@@ -1141,26 +1248,28 @@ export async function editReservationBatch(
     // For legacy batches, we need to assign a real UUID since we're inserting new rows
     const insertBatchId = isLegacy ? randomUUID() : batchId;
 
-    const newRows: [string, number, number, number, number, string, boolean][] = [];
-    for (const sid of targetSeatIds) {
-      for (const tid of timeslotIds) {
-        newRows.push([insertBatchId, ownerUserId, sid, roomId, tid, date, isAnonymous]);
+    const newRows: [string, number, number, number, number, string, boolean, boolean][] = [];
+    for (const d of dates) {
+      for (const sid of targetSeatIds) {
+        for (const tid of timeslotIds) {
+          newRows.push([insertBatchId, ownerUserId, sid, roomId, tid, d, isAnonymous, isRecurring]);
+        }
       }
     }
 
     const valuePlaceholders: string[] = [];
     const params: any[] = [];
     let idx = 1;
-    for (const [bid, uid, sid, rid, tid, d, anon] of newRows) {
+    for (const [bid, uid, sid, rid, tid, d, anon, recur] of newRows) {
       valuePlaceholders.push(
-        `($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6})`,
+        `($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5}, $${idx + 6}, $${idx + 7})`,
       );
-      params.push(bid, uid, sid, rid, tid, d, anon);
-      idx += 7;
+      params.push(bid, uid, sid, rid, tid, d, anon, recur);
+      idx += 8;
     }
 
     await client.query(
-      `INSERT INTO reservation (reservation_batch_id, user_id, seat_id, room_id, timeslot_id, request_date, is_anonymous)
+      `INSERT INTO reservation (reservation_batch_id, user_id, seat_id, room_id, timeslot_id, request_date, is_anonymous, is_recurring)
        VALUES ${valuePlaceholders.join(", ")}`,
       params,
     );
@@ -1187,4 +1296,46 @@ export async function editReservationBatch(
   } finally {
     client.release();
   }
+}
+
+// ─── Recurring conflict check ──────────────────────────────────────────
+
+export interface RecurringConflictCheckInput {
+  roomId: number;
+  date: string;         // start date YYYY-MM-DD
+  timeslotIds: number[];
+  seatIds: number[];    // pre-resolved seat IDs (or all seats for reserveAll)
+}
+
+export interface RecurringConflictCheckResult {
+  hasFacultyConflict: boolean;
+}
+
+/**
+ * Lightweight check: do any FACULTY/ADMIN reservations conflict across the
+ * recurring date series?  Used by the client to show a warning before submit.
+ * Does NOT modify anything.
+ */
+export async function checkRecurringConflicts(
+  input: RecurringConflictCheckInput,
+): Promise<RecurringConflictCheckResult> {
+  const { roomId, date, timeslotIds, seatIds } = input;
+
+  const dates = expandWeeklyDates(date);
+
+  const result = await pool.query(
+    `SELECT 1
+     FROM reservation r
+     JOIN "user" u ON u.user_id = r.user_id
+     WHERE r.room_id = $1
+       AND r.request_date = ANY($2::date[])
+       AND r.timeslot_id = ANY($3::int[])
+       AND r.seat_id = ANY($4::int[])
+       AND r.cancelled_at IS NULL
+       AND u.role IN ('FACULTY', 'ADMIN')
+     LIMIT 1`,
+    [roomId, dates, timeslotIds, seatIds],
+  );
+
+  return { hasFacultyConflict: result.rows.length > 0 };
 }

@@ -21,6 +21,112 @@ function toSafeUser(row: DbUser): SafeUser {
 }
 
 /**
+ * Public profile fields exposed when viewing another user's profile.
+ * Intentionally excludes email and sensitive account fields.
+ */
+export interface PublicProfile {
+  id: number;
+  username: string;
+  firstName: string;
+  lastName: string;
+  bio: string;
+  profilePictureUrl: string;
+  role: string;
+}
+
+/**
+ * Fetch a user's public profile by ID.
+ * Throws 404 if user not found, 403 if profile is private
+ * (unless the requester is the user themselves or an ADMIN).
+ */
+export async function getPublicProfile(
+  targetUserId: number,
+  requesterId: number,
+  requesterRole: string,
+): Promise<PublicProfile> {
+  const result = await pool.query(
+    `SELECT user_id, username, first_name, last_name, bio,
+            profile_picture_url, is_public, role
+     FROM "user"
+     WHERE user_id = $1`,
+    [targetUserId],
+  );
+
+  if (result.rows.length === 0) {
+    throw new AppError("User not found", 404);
+  }
+
+  const row = result.rows[0];
+
+  // Privacy: only allow viewing if profile is public, or requester is self/admin
+  const isSelf = requesterId === targetUserId;
+  const isAdmin = requesterRole === "ADMIN";
+  if (!row.is_public && !isSelf && !isAdmin) {
+    throw new AppError("This profile is private", 403);
+  }
+
+  return {
+    id: row.user_id,
+    username: row.username,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    bio: row.bio,
+    profilePictureUrl: row.profile_picture_url,
+    role: row.role,
+  };
+}
+
+// ─── User search (public directory) ───────────────────────────────────
+
+export interface UserSearchEntry {
+  id: number;
+  username: string;
+  firstName: string;
+  lastName: string;
+  profilePictureUrl: string;
+  role: string;
+}
+
+/**
+ * Search users by username, first name, or last name (ILIKE).
+ * Non-admin callers only see users with is_public = true.
+ * Admin callers see all users.
+ * Returns at most 20 results, ordered by username.
+ */
+export async function searchPublicUsers(
+  query: string,
+  requesterRole: string,
+): Promise<UserSearchEntry[]> {
+  const pattern = `%${query}%`;
+
+  const isAdmin = requesterRole === "ADMIN";
+
+  const result = await pool.query(
+    `SELECT user_id, username, first_name, last_name,
+            profile_picture_url, role
+     FROM "user"
+     WHERE (
+       username    ILIKE $1
+       OR first_name ILIKE $1
+       OR last_name  ILIKE $1
+     )
+     ${isAdmin ? "" : "AND is_public = true"}
+     ORDER BY username
+     LIMIT 20`,
+    [pattern],
+  );
+
+  return result.rows.map((r: any) => ({
+    id: r.user_id,
+    username: r.username,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    profilePictureUrl: r.profile_picture_url,
+    role: r.role,
+  }));
+}
+
+/**
  * Update the user's profile_picture_url and return the updated user.
  * If the user already has a local upload, delete the old file.
  */

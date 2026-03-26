@@ -57,3 +57,43 @@ export async function deleteAccount(): Promise<{ error?: string }> {
 
   return {};
 }
+
+// ─── Public profile ───────────────────────────────────────────────────
+
+export interface PublicProfile {
+  id: number;
+  username: string;
+  firstName: string;
+  lastName: string;
+  bio: string;
+  profilePictureUrl: string;
+  role: string;
+}
+
+export interface PublicProfileResult {
+  profile?: PublicProfile;
+  error?: string;
+}
+
+/**
+ * Fetch a user's public profile (GET /profile/:userId).
+ */
+export async function fetchUserProfile(
+  userId: number,
+): Promise<PublicProfileResult> {
+  try {
+    const res = await fetch(`${PROFILE_URL}/${userId}`, {
+      credentials: "include",
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return { error: data.error || "Failed to fetch profile" };
+    }
+
+    return { profile: data.profile };
+  } catch {
+    return { error: "Network error fetching profile" };
+  }
+}

@@ -16,7 +16,10 @@ import {
     fetchReservationBatchDetail,
     editReservationBatch,
 } from "~/features/reserve/services/reservationLogs.service";
+import { checkRecurringConflicts } from "~/features/reserve/services/availability.service";
 import { isTimeslotPast } from "~/features/reserve/utils/reserve";
+import { resolveSeatOccupantPreviews } from "~/features/reserve/utils/seatOccupant";
+import { getNextWeekdayDate } from "~/features/reserve/utils/date";
 
 export default function LaboratoryConfirmation() {
     const currentUser = useAuthStore((state) => state.currentUser);
@@ -32,12 +35,39 @@ export default function LaboratoryConfirmation() {
 
     const date = useMemo(() => {
         const raw = searchParams.get("date");
-        return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
+        if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+        // Recurring mode: resolve date from weekday param
+        if (searchParams.get("recurring") === "true") {
+            const wd = searchParams.get("weekday");
+            if (wd != null) {
+                const idx = Number(wd);
+                if (!isNaN(idx) && idx >= 0 && idx <= 6) {
+                    return getNextWeekdayDate(idx);
+                }
+            }
+        }
+
+        return null;
     }, [searchParams]);
 
     // --- Edit mode detection ---
     const batchId = useMemo(() => searchParams.get("batchId"), [searchParams]);
     const isEditMode = batchId !== null;
+
+    // --- Recurring mode ---
+    const recurringParam = searchParams.get("recurring") === "true";
+    const [isRecurring, setIsRecurring] = useState(recurringParam);
+    const [hasFacultyConflict, setHasFacultyConflict] = useState(false);
+    const [isCheckingRecurringConflicts, setIsCheckingRecurringConflicts] = useState(false);
+
+    // Force reserveAll + clear seat selection whenever recurring mode is active
+    useEffect(() => {
+        if (isRecurring) {
+            setReserveAll(true);
+            setSelectedSeat(null);
+        }
+    }, [isRecurring]);
 
     // --- Fetch availability (exclude own batch seats during edit) ---
     const { data: availability, isLoading, error } = useAvailability(roomId, date, batchId);
@@ -45,7 +75,7 @@ export default function LaboratoryConfirmation() {
     // --- Reservation selection state ---
     const [selectedTimeslots, setSelectedTimeslots] = useState<string[]>([]);
     const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
-    const [reserveAll, setReserveAll] = useState(false);
+    const [reserveAll, setReserveAll] = useState(recurringParam);
     const [isAnonymous, setIsAnonymous] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState("");
@@ -91,10 +121,18 @@ export default function LaboratoryConfirmation() {
 
             // Apply prefill
             setSelectedTimeslots(detail.timeslotIds.map(String));
-            setReserveAll(detail.reserveAll);
-            setSelectedSeat(detail.seatId);
             setIsAnonymous(detail.isAnonymous);
+            setIsRecurring(detail.isRecurring);
             setSubmitError("");
+
+            // Normalize recurring: always force all-seat (handles legacy data too)
+            if (detail.isRecurring) {
+                setReserveAll(true);
+                setSelectedSeat(null);
+            } else {
+                setReserveAll(detail.reserveAll);
+                setSelectedSeat(detail.seatId);
+            }
 
             prefillApplied.current = true;
         })();
@@ -110,10 +148,10 @@ export default function LaboratoryConfirmation() {
         if (isEditMode) return;
         setSelectedTimeslots([]);
         setSelectedSeat(null);
-        setReserveAll(false);
+        setReserveAll(isRecurring);
         setIsAnonymous(false);
         setSubmitError("");
-    }, [availability, isEditMode]);
+    }, [availability, isEditMode, isRecurring]);
 
     // Reset prefill flag when batchId changes
     useEffect(() => {
@@ -136,6 +174,12 @@ export default function LaboratoryConfirmation() {
         return Array.from(occupied);
     }, [availability, selectedTimeslots]);
 
+    // --- Resolve seat occupant previews for hover tooltips ---
+    const seatOccupantPreviews = useMemo(() => {
+        if (!availability || selectedTimeslots.length === 0) return new Map();
+        return resolveSeatOccupantPreviews(availability.timeslots, selectedTimeslots);
+    }, [availability, selectedTimeslots]);
+
     // --- Auto-clear selected seat if it becomes occupied after timeslot change ---
     useEffect(() => {
         if (selectedSeat !== null && occupiedSeatIds.includes(selectedSeat)) {
@@ -144,7 +188,9 @@ export default function LaboratoryConfirmation() {
     }, [occupiedSeatIds, selectedSeat]);
 
     // --- Compute past timeslot IDs (start time has already passed for the selected date) ---
+    // In recurring mode, don't disable any timeslots — the series spans many future weeks
     const pastTimeslotIds = useMemo(() => {
+        if (isRecurring) return new Set<string>();
         if (!availability || !date) return new Set<string>();
         const past = new Set<string>();
         for (const ts of availability.timeslots) {
@@ -153,7 +199,7 @@ export default function LaboratoryConfirmation() {
             }
         }
         return past;
-    }, [availability, date]);
+    }, [availability, date, isRecurring]);
 
     // --- Auto-clear any selected timeslots that have since passed ---
     useEffect(() => {
@@ -162,6 +208,37 @@ export default function LaboratoryConfirmation() {
             prev.filter((id) => !pastTimeslotIds.has(id)),
         );
     }, [pastTimeslotIds]);
+
+    // --- Recurring conflict check (debounced) ---
+    useEffect(() => {
+        if (!isRecurring || !roomId || !date || selectedTimeslots.length === 0) {
+            setHasFacultyConflict(false);
+            return;
+        }
+
+        let cancelled = false;
+        setIsCheckingRecurringConflicts(true);
+
+        const timer = setTimeout(async () => {
+            const result = await checkRecurringConflicts({
+                roomId,
+                date,
+                timeslotIds: selectedTimeslots.map(Number),
+                seatId: null,
+                reserveAll: true,
+            });
+            if (!cancelled) {
+                setHasFacultyConflict(result.hasFacultyConflict === true);
+                setIsCheckingRecurringConflicts(false);
+            }
+        }, 400);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+            setIsCheckingRecurringConflicts(false);
+        };
+    }, [isRecurring, roomId, date, selectedTimeslots]);
 
     // --- Handlers ---
     const handleTimeslotChange = useCallback((value: string[]) => {
@@ -181,6 +258,9 @@ export default function LaboratoryConfirmation() {
         setIsAnonymous(value);
     }, []);
 
+    // Derived: in recurring mode, reserveAll is always true regardless of state
+    const effectiveReserveAll = isRecurring || reserveAll;
+
     const handleSubmit = useCallback(async () => {
         if (!roomId || !date || isSubmitting) return;
 
@@ -191,9 +271,10 @@ export default function LaboratoryConfirmation() {
             roomId,
             date,
             timeslotIds: selectedTimeslots.map(Number),
-            seatId: reserveAll ? null : selectedSeat,
-            reserveAll,
+            seatId: effectiveReserveAll ? null : selectedSeat,
+            reserveAll: effectiveReserveAll,
             isAnonymous,
+            ...(isRecurring ? { isRecurring: true } : {}),
             ...(isAdmin && !isEditMode && adminSearch.selectedUser
                 ? { targetUserId: adminSearch.selectedUser.id }
                 : {}),
@@ -217,13 +298,13 @@ export default function LaboratoryConfirmation() {
         navigate(redirectTo);
     }, [
         roomId, date, selectedTimeslots, selectedSeat,
-        reserveAll, isAnonymous, isSubmitting, navigate,
+        reserveAll, isAnonymous, isRecurring, isSubmitting, navigate,
         isEditMode, batchId, isAdmin, adminSearch.selectedUser,
     ]);
 
     // --- Validation ---
     const hasTimeslots = selectedTimeslots.length > 0;
-    const hasSeat = selectedSeat !== null || reserveAll;
+    const hasSeat = selectedSeat !== null || effectiveReserveAll;
     const hasContext = roomId !== null && date !== null && availability !== null;
     const hasAdminTarget = !isAdmin || isEditMode || adminSearch.selectedUser !== null;
     const isValid = hasContext && hasTimeslots && hasSeat && hasAdminTarget;
@@ -299,6 +380,7 @@ export default function LaboratoryConfirmation() {
                             occupiedSeats={ts.occupiedSeats}
                             capacity={availability.room.capacity}
                             reservedSeatIds={ts.reservedSeatIds}
+                            seatOccupants={ts.seatOccupants}
                             disabled={pastTimeslotIds.has(ts.timeslotId.toString())}
                         />
                     ))}
@@ -320,9 +402,11 @@ export default function LaboratoryConfirmation() {
                     <SeatSelection
                         totalSeats={availability?.room.capacity ?? 0}
                         selectedSeat={selectedSeat}
-                        reserveAll={reserveAll}
+                        reserveAll={effectiveReserveAll}
                         isAnonymous={isAnonymous}
                         occupiedSeatIds={occupiedSeatIds}
+                        seatOccupantPreviews={seatOccupantPreviews}
+                        forceReserveAll={isRecurring}
                         onSeatSelect={handleSeatSelect}
                         onReserveAllChange={handleReserveAllChange}
                         onAnonymousChange={handleAnonymousChange}
@@ -334,12 +418,19 @@ export default function LaboratoryConfirmation() {
                         selectedTimeslotIds={selectedTimeslots}
                         timeslots={availability?.timeslots ?? []}
                         selectedSeat={selectedSeat}
-                        reserveAll={reserveAll}
+                        reserveAll={effectiveReserveAll}
+                        isRecurring={isRecurring}
                     />
+
+                    {isRecurring && hasFacultyConflict && (
+                        <p className="text-amber-700 bg-amber-50 border border-amber-300 rounded-md px-3 py-2 text-sm text-center">
+                            A faculty/admin reservation conflicts with one or more dates in this recurring series. Submission will be rejected.
+                        </p>
+                    )}
 
                     <Button
                         className="w-full rounded-full"
-                        disabled={!isValid || isSubmitting}
+                        disabled={!isValid || isSubmitting || (isRecurring && isCheckingRecurringConflicts)}
                         onClick={handleSubmit}
                     >
                         {submitLabel}
