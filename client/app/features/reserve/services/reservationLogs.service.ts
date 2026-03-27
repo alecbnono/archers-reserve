@@ -1,6 +1,6 @@
 import type { ReservationType } from "~/types/reservation.types";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL;
 const BASE_URL = `${API_URL}/reservations`;
 
 export interface ReservationListResult {
@@ -81,10 +81,13 @@ export async function cancelReservationBatch(
   batchId: string,
 ): Promise<CancelReservationResult> {
   try {
-    const res = await fetch(`${BASE_URL}/${encodeURIComponent(batchId)}/cancel`, {
-      method: "PATCH",
-      credentials: "include",
-    });
+    const res = await fetch(
+      `${BASE_URL}/${encodeURIComponent(batchId)}/cancel`,
+      {
+        method: "PATCH",
+        credentials: "include",
+      },
+    );
 
     const data = await res.json();
 
