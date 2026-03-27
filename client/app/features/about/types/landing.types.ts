@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
+
 export type InfoCard = {
     heading: string;
-    body: string;
+    body: ReactNode;
 };

@@ -11,7 +11,7 @@ import {
 
 export default function AboutCard({ heading, body }: InfoCard) {
     return (
-        <Card className="w-full border-slate-200 shadow-sm">
+        <Card className="w-full gap-2 border-slate-200 shadow-sm">
             <CardHeader>
             <CardTitle className="text-xl font-bold">{heading}</CardTitle>
             </CardHeader>
