@@ -1,7 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import type { RoomType } from "@/types/labs.types";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { API_URL } from "~/config/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LaboratoryCard from "../molecule/LaboratoryCard";
 import FilterLaboratory from "./FilterLaboratory";
@@ -25,7 +24,7 @@ export default function LaboratoryList() {
     const [isRecurring, setIsRecurring] = useState(false);
 
     useEffect(() => {
-        fetch(`${API_URL}/rooms/buildings`, { credentials: "include" })
+        fetch(`${API_URL}/rooms/buildings`)
             .then((res) => res.json())
             .then((data) => setBuildings(data.buildings || []))
             .catch(() => setError("Could not load buildings"));
@@ -145,7 +144,7 @@ export default function LaboratoryList() {
         setIsLoading(true);
         setError(null);
 
-        fetch(url, { credentials: "include" })
+        fetch(url)
             .then((res) => res.json())
             .then((data) => {
                 setRooms(data.rooms || []);

@@ -40,12 +40,17 @@ export default function Navbar() {
     return (
         <>
             <nav className="hidden md:flex py-5 px-10 justify-between">
-                <div className="flex items-center gap-2">
+                <Link to="/" className="flex items-center gap-2">
                     <LuScreenShare size={24} />
                     <p className="font-medium">ArchersReserve</p>
-                </div>
+                </Link>
                 {currentUser === null ? (
                     <div className="flex gap-4">
+                        <Link to="/about">
+                            <Button variant="outline">
+                                About
+                            </Button>
+                        </Link>
                         <Button variant="outline" onClick={openLogin}>
                             Login
                         </Button>
@@ -54,18 +59,26 @@ export default function Navbar() {
                         </Button>
                     </div>
                 ) : (
+                    <div className="flex gap-4">
+                    <Link to="/about">
+                            <Button variant="outline">
+                                About
+                            </Button>
+                        </Link>
                     <Link to="/dashboard/profile">
                         <Button variant="outline">
                             Dashboard
                         </Button>
                     </Link>
+                    </div>
+
                 )}
             </nav>
             <div className="flex justify-between md:hidden px-4 py-4">
-                <div className="flex items-center gap-2">
+                <Link to="/" className="flex items-center gap-2">
                     <LuScreenShare size={24} />
                     <p className="font-medium">ArchersReserve</p>
-                </div>
+                </Link>
 
                 <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
                     <SheetTrigger asChild>
@@ -73,16 +86,21 @@ export default function Navbar() {
                             <IoMenu size={48} />
                         </Button>
                     </SheetTrigger>
-                    <SheetContent className="flex flex-col p-10 pt-15">
-                        <div className="flex flex-col gap-4">
-                            <Button variant="outline" onClick={openLogin}>
-                                Login
-                            </Button>
-                            <Button variant="outline" onClick={openRegister}>
-                                Register
-                            </Button>
-                        </div>
-                    </SheetContent>
+                        <SheetContent className="flex flex-col p-10 pt-15">
+                            <div className="flex flex-col gap-4">
+                                <Link to="/about" onClick={() => setSheetOpen(false)}>
+                                    <Button variant="outline" className="w-full">
+                                        About
+                                    </Button>
+                                </Link>
+                                <Button variant="outline" onClick={openLogin}>
+                                    Login
+                                </Button>
+                                <Button variant="outline" onClick={openRegister}>
+                                    Register
+                                </Button>
+                            </div>
+                        </SheetContent>
                 </Sheet>
             </div>
 

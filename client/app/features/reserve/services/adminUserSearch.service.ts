@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL;
+import { API_URL } from "~/config/api";
+import { getAuthHeaders } from "~/lib/auth";
+
 const BASE_URL = `${API_URL}/admin`;
 
 export interface SearchableUser {
@@ -24,7 +26,7 @@ export async function searchUsers(query: string): Promise<UserSearchResult> {
   try {
     const res = await fetch(
       `${BASE_URL}/users/search?q=${encodeURIComponent(query)}`,
-      { credentials: "include" },
+      { headers: getAuthHeaders() },
     );
 
     const data = await res.json();

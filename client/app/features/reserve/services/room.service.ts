@@ -1,6 +1,6 @@
 import type { RoomType } from "~/types/labs.types";
+import { API_URL } from "~/config/api";
 
-const API_URL = import.meta.env.VITE_API_URL;
 const BASE_URL = `${API_URL}/rooms`;
 
 export interface RoomListResult {
@@ -12,9 +12,7 @@ export interface RoomListResult {
  * Fetch all rooms (GET /rooms).
  */
 export async function fetchRooms(): Promise<RoomListResult> {
-  const res = await fetch(BASE_URL, {
-    credentials: "include",
-  });
+  const res = await fetch(BASE_URL);
 
   const data = await res.json();
 

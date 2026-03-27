@@ -1,7 +1,12 @@
 import type { RegisterPayload } from "../types/auth.types";
 import type { User } from "~/types/user.types";
+import { API_URL } from "~/config/api";
+import {
+  clearAccessToken,
+  getAuthHeaders,
+  setAccessToken,
+} from "~/lib/auth";
 
-const API_URL = import.meta.env.VITE_API_URL;
 const BASE_URL = `${API_URL}/auth`;
 
 export interface AuthResult {
@@ -15,7 +20,6 @@ export async function registerUser(
   const res = await fetch(`${BASE_URL}/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify(payload),
   });
 
@@ -36,7 +40,6 @@ export async function loginUser(
   const res = await fetch(`${BASE_URL}/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    credentials: "include",
     body: JSON.stringify({ identifier, password, remember }),
   });
 
@@ -46,14 +49,20 @@ export async function loginUser(
     return { error: data.error || "Login failed" };
   }
 
+  if (data.accessToken) {
+    setAccessToken(data.accessToken);
+  }
+
   return { user: data.user };
 }
 
 export async function logoutUser(): Promise<{ error?: string }> {
   const res = await fetch(`${BASE_URL}/logout`, {
     method: "POST",
-    credentials: "include",
+    headers: getAuthHeaders(),
   });
+
+  clearAccessToken();
 
   if (!res.ok) {
     const data = await res.json();
@@ -65,7 +74,7 @@ export async function logoutUser(): Promise<{ error?: string }> {
 
 export async function fetchCurrentUser(): Promise<AuthResult> {
   const res = await fetch(`${BASE_URL}/me`, {
-    credentials: "include",
+    headers: getAuthHeaders(),
   });
 
   if (!res.ok) {

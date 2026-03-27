@@ -29,7 +29,7 @@ export default function HeroSection() {
 
     return (
         <>
-            <div className="bg-[url(hero.jpg)] bg-no-repeat bg-cover bg-center text-center w-screen">
+            <div className="bg-[url('/hero.jpg')] bg-no-repeat bg-cover bg-center text-center w-screen">
                 <div className="bg-primary/80 py-35 px-15 flex flex-col justify-center items-center gap-6 px-10">
                     <div className="flex flex-col items-center gap-2">
                         <h1 className="font-bold text-5xl">

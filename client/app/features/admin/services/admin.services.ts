@@ -1,14 +1,13 @@
 import type { AdminLogFilters } from "../types/filter.types";
+import { API_URL } from "~/config/api";
+import { getAuthHeaders } from "~/lib/auth";
 
-const API_URL = import.meta.env.VITE_API_URL;
 const BASE_URL = `${API_URL}/admin`;
 
 export async function fetchAllReservations(filters?: AdminLogFilters): Promise<{
   reservations: any[];
   error?: string;
 }> {
-  const token = localStorage.getItem("token");
-
   const params = new URLSearchParams();
   if (filters) {
     if (filters.buildings?.length) {
@@ -30,11 +29,9 @@ export async function fetchAllReservations(filters?: AdminLogFilters): Promise<{
 
   try {
     const res = await fetch(url, {
-      credentials: "include",
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
+      headers: getAuthHeaders({
         "Content-Type": "application/json",
-      },
+      }),
     });
 
     const data = await res.json();
