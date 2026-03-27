@@ -1,7 +1,7 @@
 import type { RegisterPayload } from "../types/auth.types";
 import type { User } from "~/types/user.types";
+import { API_URL } from "~/config/api";
 
-const API_URL = import.meta.env.VITE_API_URL;
 const BASE_URL = `${API_URL}/auth`;
 
 export interface AuthResult {

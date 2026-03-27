@@ -1,7 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import type { RoomType } from "@/types/labs.types";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { API_URL } from "~/config/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LaboratoryCard from "../molecule/LaboratoryCard";
 import FilterLaboratory from "./FilterLaboratory";

@@ -1,6 +1,6 @@
 import type { RoomType } from "~/types/labs.types";
+import { API_URL } from "~/config/api";
 
-const API_URL = import.meta.env.VITE_API_URL;
 const BASE_URL = `${API_URL}/rooms`;
 
 export interface RoomListResult {
