@@ -1,7 +1,7 @@
 import type { RegisterPayload } from "../types/auth.types";
 import type { User } from "~/types/user.types";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL;
 const BASE_URL = `${API_URL}/auth`;
 
 export interface AuthResult {
@@ -75,5 +75,3 @@ export async function fetchCurrentUser(): Promise<AuthResult> {
   const data = await res.json();
   return { user: data.user };
 }
-
-

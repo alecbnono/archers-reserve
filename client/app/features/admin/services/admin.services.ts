@@ -1,6 +1,6 @@
 import type { AdminLogFilters } from "../types/filter.types";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL;
 const BASE_URL = `${API_URL}/admin`;
 
 export async function fetchAllReservations(filters?: AdminLogFilters): Promise<{
@@ -18,7 +18,10 @@ export async function fetchAllReservations(filters?: AdminLogFilters): Promise<{
       params.append("startTime", filters.timeRange[0].toString());
       params.append("endTime", filters.timeRange[1].toString());
     }
-    if (filters.selectedUserId !== undefined && filters.selectedUserId !== null) {
+    if (
+      filters.selectedUserId !== undefined &&
+      filters.selectedUserId !== null
+    ) {
       params.append("userId", String(filters.selectedUserId));
     }
   }
@@ -53,3 +56,4 @@ export async function fetchAllReservations(filters?: AdminLogFilters): Promise<{
     };
   }
 }
+

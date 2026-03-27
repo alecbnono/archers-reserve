@@ -1,6 +1,6 @@
 import type { AvailabilityData } from "~/features/reserve/types/reserve.types";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL;
 const BASE_URL = `${API_URL}/reservations`;
 
 export interface AvailabilityResult {
