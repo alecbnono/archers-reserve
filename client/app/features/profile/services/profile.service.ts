@@ -1,5 +1,6 @@
 import type { User } from "~/types/user.types";
 import { API_URL } from "~/config/api";
+import { getAuthHeaders } from "~/lib/auth";
 
 const PROFILE_URL = `${API_URL}/profile`;
 
@@ -14,7 +15,7 @@ export async function uploadAvatar(file: File): Promise<ProfileResult> {
 
   const res = await fetch(`${PROFILE_URL}/me/avatar`, {
     method: "POST",
-    credentials: "include",
+    headers: getAuthHeaders(),
     body: formData,
   });
 
@@ -30,8 +31,9 @@ export async function uploadAvatar(file: File): Promise<ProfileResult> {
 export async function updateBio(bio: string): Promise<ProfileResult> {
   const res = await fetch(`${PROFILE_URL}/me/bio`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
+    headers: getAuthHeaders({
+      "Content-Type": "application/json",
+    }),
     body: JSON.stringify({ bio }),
   });
 
@@ -47,7 +49,7 @@ export async function updateBio(bio: string): Promise<ProfileResult> {
 export async function deleteAccount(): Promise<{ error?: string }> {
   const res = await fetch(`${PROFILE_URL}/me`, {
     method: "DELETE",
-    credentials: "include",
+    headers: getAuthHeaders(),
   });
 
   if (!res.ok) {
@@ -83,7 +85,7 @@ export async function fetchUserProfile(
 ): Promise<PublicProfileResult> {
   try {
     const res = await fetch(`${PROFILE_URL}/${userId}`, {
-      credentials: "include",
+      headers: getAuthHeaders(),
     });
 
     const data = await res.json();

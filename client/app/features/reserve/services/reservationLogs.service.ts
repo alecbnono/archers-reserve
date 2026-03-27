@@ -1,5 +1,6 @@
 import type { ReservationType } from "~/types/reservation.types";
 import { API_URL } from "~/config/api";
+import { getAuthHeaders } from "~/lib/auth";
 
 const BASE_URL = `${API_URL}/reservations`;
 
@@ -13,7 +14,7 @@ export interface ReservationListResult {
  */
 export async function fetchMyReservations(): Promise<ReservationListResult> {
   const res = await fetch(`${BASE_URL}/me`, {
-    credentials: "include",
+    headers: getAuthHeaders(),
   });
 
   const data = await res.json();
@@ -30,7 +31,7 @@ export async function fetchMyReservations(): Promise<ReservationListResult> {
  */
 export async function fetchAllReservations(): Promise<ReservationListResult> {
   const res = await fetch(BASE_URL, {
-    credentials: "include",
+    headers: getAuthHeaders(),
   });
 
   const data = await res.json();
@@ -51,7 +52,7 @@ export async function fetchUserReservations(
 ): Promise<ReservationListResult> {
   try {
     const res = await fetch(`${BASE_URL}/user/${userId}`, {
-      credentials: "include",
+      headers: getAuthHeaders(),
     });
 
     const data = await res.json();
@@ -85,7 +86,7 @@ export async function cancelReservationBatch(
       `${BASE_URL}/${encodeURIComponent(batchId)}/cancel`,
       {
         method: "PATCH",
-        credentials: "include",
+        headers: getAuthHeaders(),
       },
     );
 
@@ -132,7 +133,7 @@ export async function fetchReservationBatchDetail(
 ): Promise<FetchBatchDetailResult> {
   try {
     const res = await fetch(`${BASE_URL}/${encodeURIComponent(batchId)}`, {
-      credentials: "include",
+      headers: getAuthHeaders(),
     });
 
     const data = await res.json();
@@ -179,8 +180,7 @@ export async function editReservationBatch(
   try {
     const res = await fetch(`${BASE_URL}/${encodeURIComponent(batchId)}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
 

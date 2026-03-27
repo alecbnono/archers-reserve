@@ -1,4 +1,5 @@
 import { API_URL } from "~/config/api";
+import { getAuthHeaders } from "~/lib/auth";
 
 const PROFILE_URL = `${API_URL}/profile`;
 
@@ -25,7 +26,7 @@ export async function searchUsers(query: string): Promise<UserSearchResult> {
   try {
     const res = await fetch(
       `${PROFILE_URL}/search?q=${encodeURIComponent(query)}`,
-      { credentials: "include" },
+      { headers: getAuthHeaders() },
     );
 
     const data = await res.json();

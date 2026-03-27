@@ -1,4 +1,5 @@
 import { API_URL } from "~/config/api";
+import { getAuthHeaders } from "~/lib/auth";
 
 const BASE_URL = `${API_URL}/reservations`;
 
@@ -33,8 +34,7 @@ export async function createReservation(
   try {
     const res = await fetch(BASE_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
 

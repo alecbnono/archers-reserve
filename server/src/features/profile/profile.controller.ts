@@ -132,13 +132,6 @@ export async function deleteAccount(
   try {
     await profileService.deleteAccount(req.user!.id);
 
-    // Clear auth cookie (same settings as logout)
-    res.clearCookie("accessToken", {
-      httpOnly: true,
-      sameSite: "none" as const,
-      secure: process.env.NODE_ENV === "production",
-    });
-
     res.status(200).json({ message: "Account deleted successfully" });
   } catch (error: any) {
     res

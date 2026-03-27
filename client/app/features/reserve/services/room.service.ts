@@ -12,9 +12,7 @@ export interface RoomListResult {
  * Fetch all rooms (GET /rooms).
  */
 export async function fetchRooms(): Promise<RoomListResult> {
-  const res = await fetch(BASE_URL, {
-    credentials: "include",
-  });
+  const res = await fetch(BASE_URL);
 
   const data = await res.json();
 
