@@ -1,10 +1,13 @@
 /**
  * Centralized API base URL.
  *
- * Reads VITE_API_URL at build time and strips any trailing slash
- * so every consumer can safely append paths like `${API_URL}/auth`.
+ * Vite statically replaces import.meta.env.VITE_API_URL at build time
+ * in both client AND server (SSR) bundles, so this works everywhere.
+ *
+ * If VITE_API_URL is not set during build, .replace() will throw on
+ * undefined — this is intentional (fail-fast).
  */
-export const API_URL =
-  typeof window === "undefined"
-    ? process.env.API_URL
-    : import.meta.env.VITE_API_URL;
+export const API_URL = (import.meta.env.VITE_API_URL as string).replace(
+  /\/+$/,
+  "",
+);
