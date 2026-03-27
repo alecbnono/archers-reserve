@@ -135,7 +135,7 @@ export async function deleteAccount(
     // Clear auth cookie (same settings as logout)
     res.clearCookie("accessToken", {
       httpOnly: true,
-      sameSite: "lax" as const,
+      sameSite: "none" as const,
       secure: process.env.NODE_ENV === "production",
     });
 

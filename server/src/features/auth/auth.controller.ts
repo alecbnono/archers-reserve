@@ -9,7 +9,7 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 function buildCookieOptions(remember: boolean) {
   const base = {
     httpOnly: true,
-    sameSite: "lax" as const,
+    sameSite: "none" as const,
     secure: process.env.NODE_ENV === "production",
   };
 
@@ -85,7 +85,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 export async function logout(_req: Request, res: Response): Promise<void> {
   res.clearCookie("accessToken", {
     httpOnly: true,
-    sameSite: "lax" as const,
+    sameSite: "none" as const,
     secure: process.env.NODE_ENV === "production",
   });
   res.status(200).json({ message: "Logged out successfully" });
