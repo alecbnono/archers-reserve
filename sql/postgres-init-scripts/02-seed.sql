@@ -140,3 +140,181 @@ WHERE r.room_code = 'L229'
 AND t.start_time >= TIME '12:00:00'
 AND t.start_time < TIME '15:00:00'
 AND x.reservation_id IS NULL;
+
+-- ------------------------------------------------------------
+-- 1) 5 STUDENT user profiles
+-- ------------------------------------------------------------
+INSERT INTO "user" (
+  username, first_name, last_name, email, password_hash, role, bio, is_public, is_anonymous
+) VALUES
+  ('stud_anna',  'Anna',  'Reyes',    'anna.reyes@dlsu.edu.ph',  '$2b$10$mockhashstudent00000000000000000000000000000000000001', 'STUDENT', 'Mock student profile', TRUE, FALSE),
+  ('stud_ben',   'Ben',   'Cruz',     'ben.cruz@dlsu.edu.ph',    '$2b$10$mockhashstudent00000000000000000000000000000000000002', 'STUDENT', 'Mock student profile', TRUE, FALSE),
+  ('stud_carla', 'Carla', 'Santos',   'carla.santos@dlsu.edu.ph','$2b$10$mockhashstudent00000000000000000000000000000000000003', 'STUDENT', 'Mock student profile', TRUE, FALSE),
+  ('stud_diego', 'Diego', 'Lim',      'diego.lim@dlsu.edu.ph',   '$2b$10$mockhashstudent00000000000000000000000000000000000004', 'STUDENT', 'Mock student profile', TRUE, FALSE),
+  ('stud_ella',  'Ella',  'Navarro',  'ella.navarro@dlsu.edu.ph','$2b$10$mockhashstudent00000000000000000000000000000000000005', 'STUDENT', 'Mock student profile', TRUE, FALSE)
+ON CONFLICT (email) DO NOTHING;
+
+-- ------------------------------------------------------------
+-- 2) 5 ADMIN user profiles
+-- ------------------------------------------------------------
+INSERT INTO "user" (
+  username, first_name, last_name, email, password_hash, role, bio, is_public, is_anonymous
+) VALUES
+  ('admin_ian',   'Ian',   'Gonzales', 'ian.gonzales@dlsu.edu.ph',   '$2b$10$mockhashadmin000000000000000000000000000000000000001', 'ADMIN', 'Mock admin profile', TRUE, FALSE),
+  ('admin_jane',  'Jane',  'Lopez',    'jane.lopez@dlsu.edu.ph',     '$2b$10$mockhashadmin000000000000000000000000000000000000002', 'ADMIN', 'Mock admin profile', TRUE, FALSE),
+  ('admin_karl',  'Karl',  'Tan',      'karl.tan@dlsu.edu.ph',       '$2b$10$mockhashadmin000000000000000000000000000000000000003', 'ADMIN', 'Mock admin profile', TRUE, FALSE),
+  ('admin_lisa',  'Lisa',  'Mendoza',  'lisa.mendoza@dlsu.edu.ph',   '$2b$10$mockhashadmin000000000000000000000000000000000000004', 'ADMIN', 'Mock admin profile', TRUE, FALSE),
+  ('admin_miguel','Miguel','Aquino',   'miguel.aquino@dlsu.edu.ph',  '$2b$10$mockhashadmin000000000000000000000000000000000000005', 'ADMIN', 'Mock admin profile', TRUE, FALSE)
+ON CONFLICT (email) DO NOTHING;
+
+-- ------------------------------------------------------------
+-- Extra: Ensure one FACULTY exists to own reservations
+-- ------------------------------------------------------------
+INSERT INTO "user" (
+  username, first_name, last_name, email, password_hash, role, bio, is_public, is_anonymous
+) VALUES
+  ('faculty_goko', 'Rainer', 'Gonzaga', 'rainer_gonzaga@dlsu.edu.ph',
+   '$2b$10$mockhashfaculty00000000000000000000000000000000000001',
+   'FACULTY', 'Mock faculty reservation owner', TRUE, FALSE)
+ON CONFLICT (email) DO NOTHING;
+
+-- ------------------------------------------------------------
+-- 3) 10 reservations for EACH Room in Gokongwei
+--    made by the FACULTY user, up to March 29, 2026
+-- ------------------------------------------------------------
+-- Optional cleanup: remove previous mock reservations for this faculty in Gokongwei
+DELETE FROM reservation r
+USING room rm, "user" u
+WHERE r.room_id = rm.room_id
+  AND r.user_id = u.user_id
+  AND rm.building ILIKE '%gokongwei%'
+  AND u.email = 'rainer_gonzaga@dlsu.edu.ph'
+  AND r.request_date <= DATE '2026-03-29';
+
+WITH faculty_user AS (
+  SELECT user_id
+  FROM "user"
+  WHERE email = 'rainer_gonzaga@dlsu.edu.ph'
+  LIMIT 1
+),
+gokongwei_rooms AS (
+  SELECT room_id, room_code
+  FROM room
+  WHERE building ILIKE '%gokongwei%'
+),
+candidate_slots AS (
+  SELECT
+    gr.room_id,
+    gr.room_code,
+    s.seat_id,
+    t.timeslot_id,
+    gs::date AS request_date,
+    ROW_NUMBER() OVER (
+      PARTITION BY gr.room_id
+      ORDER BY gs::date, t.timeslot_id, s.seat_id
+    ) AS rn
+  FROM gokongwei_rooms gr
+  JOIN seat s
+    ON s.room_id = gr.room_id
+  JOIN timeslot t
+    ON TRUE
+  JOIN generate_series(
+    DATE '2026-03-20',
+    DATE '2026-03-29',
+    INTERVAL '1 day'
+  ) gs
+    ON TRUE
+),
+picked AS (
+  SELECT room_id, seat_id, timeslot_id, request_date
+  FROM candidate_slots
+  WHERE rn <= 10
+)
+INSERT INTO reservation (
+  reservation_batch_id,
+  user_id,
+  seat_id,
+  room_id,
+  timeslot_id,
+  request_date,
+  is_anonymous,
+  is_recurring
+)
+SELECT
+  NULL,
+  fu.user_id,
+  p.seat_id,
+  p.room_id,
+  p.timeslot_id,
+  p.request_date,
+  FALSE,
+  FALSE
+FROM picked p
+CROSS JOIN faculty_user fu
+LEFT JOIN reservation r
+  ON r.room_id = p.room_id
+ AND r.seat_id = p.seat_id
+ AND r.timeslot_id = p.timeslot_id
+ AND r.request_date = p.request_date
+ AND r.cancelled_at IS NULL
+WHERE r.reservation_id IS NULL;
+
+-- ------------------------------------------------------------
+-- 4) Full timeslot coverage for Gokongwei rooms (Mar 28-29)
+--    10 reservations per room per timeslot per day (seats 1-10)
+-- ------------------------------------------------------------
+WITH faculty_user AS (
+  SELECT user_id
+  FROM "user"
+  WHERE email = 'rainer_gonzaga@dlsu.edu.ph'
+  LIMIT 1
+),
+gokongwei_rooms AS (
+  SELECT room_id
+  FROM room
+  WHERE building ILIKE '%gokongwei%'
+),
+target_dates AS (
+  SELECT gs::date AS request_date
+  FROM generate_series(
+    DATE '2026-03-28',
+    DATE '2026-03-29',
+    INTERVAL '1 day'
+  ) gs
+),
+seat_pool AS (
+  SELECT s.room_id, s.seat_id
+  FROM seat s
+  JOIN gokongwei_rooms gr ON gr.room_id = s.room_id
+  WHERE s.seat_id <= 10
+)
+INSERT INTO reservation (
+  reservation_batch_id,
+  user_id,
+  seat_id,
+  room_id,
+  timeslot_id,
+  request_date,
+  is_anonymous,
+  is_recurring
+)
+SELECT
+  NULL,
+  fu.user_id,
+  sp.seat_id,
+  sp.room_id,
+  t.timeslot_id,
+  d.request_date,
+  FALSE,
+  FALSE
+FROM faculty_user fu
+CROSS JOIN seat_pool sp
+CROSS JOIN timeslot t
+CROSS JOIN target_dates d
+LEFT JOIN reservation r
+  ON r.room_id = sp.room_id
+ AND r.seat_id = sp.seat_id
+ AND r.timeslot_id = t.timeslot_id
+ AND r.request_date = d.request_date
+ AND r.cancelled_at IS NULL
+WHERE r.reservation_id IS NULL;
