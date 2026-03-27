@@ -15,7 +15,7 @@ export default function AboutContent() {
                     <>
                         <ul className="space-y-4">
                             <li className="text-[#2a3a2a]">
-                            <span className="font-bold">React</span> — A Frontend JavaScript library for building user interfaces
+                            <span className="font-bold">React</span> — UI library for building component-based user interfaces
                             </li>
                             <li className="text-[#2a3a2a]">
                             <span className="font-bold">Vite</span> — Fast build tool used by client app
@@ -42,7 +42,7 @@ export default function AboutContent() {
                             <span className="font-bold">Node.js</span> — JavaScript runtime for executing frontend tooling and backend server code
                             </li>
                             <li className="text-[#2a3a2a]">
-                            <span className="font-bold">Express</span> — Backend web framework defining routes for Node.js
+                            <span className="font-bold">Express</span> — Backend web framework defining routes and middleware
                             </li>
                             <li className="text-[#2a3a2a]">
                             <span className="font-bold">PostgreSQL</span> — Relational database management system
